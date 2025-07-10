@@ -1,14 +1,18 @@
 # Omani Therapist Agent
 
-A speech-to-text system designed for Omani Arabic dialect using Google Cloud Speech-to-Text API.
+A speech-to-text system designed for Omani Arabic dialect using Google Cloud Speech-to-Text API and Azure Cognitive Services.
 
 ## Setup Instructions
 
 ### Prerequisites
 
 1. Python 3.7 or higher
-2. Google Cloud account with Speech-to-Text API enabled
-3. Google Cloud service account with appropriate permissions
+2. **Google Cloud Setup:**
+   - Google Cloud account with Speech-to-Text API enabled
+   - Google Cloud service account with appropriate permissions
+3. **Azure Setup (Optional):**
+   - Azure account with Cognitive Services
+   - Speech Services resource created
 
 ### Installation
 
@@ -20,35 +24,57 @@ A speech-to-text system designed for Omani Arabic dialect using Google Cloud Spe
 
 2. Install required dependencies:
    ```bash
+   # For Google Cloud
    pip install speech_recognition google-cloud-speech pyaudio
+   
+   # For Azure (optional)
+   pip install azure-cognitiveservices-speech
    ```
 
-3. Set up Google Cloud credentials:
+3. Set up credentials:
+   
+   **Google Cloud:**
    - Download your Google Cloud service account JSON credentials file
    - Place it in the `speech2texttest/google/` directory
    - Update the filename in `testgoogle.ipynb` if different from the default
+   
+   **Azure (Optional):**
+   - Copy `speech2texttest/azure/credentials_template.md` to `speech2texttest/azure/credentials.md`
+   - Fill in your Azure Speech Services keys and endpoint
+   - The credentials.md file is automatically excluded from version control
 
 ### Usage
 
+**Google Cloud Speech-to-Text:**
 1. Open the Jupyter notebook:
    ```bash
    jupyter notebook speech2texttest/google/testgoogle.ipynb
    ```
-
 2. Run the cells to test speech-to-text with Omani Arabic (`ar-OM`)
+
+**Azure Cognitive Services (when available):**
+1. Navigate to the Azure notebooks in `speech2texttest/azure/`
+2. Choose from the available notebooks:
+   - `testazureaudio.ipynb` - Audio file transcription
+   - `testazuremic.ipynb` - Microphone input transcription  
+   - `testazure_realtime_continuous recoginition.ipynb` - Real-time continuous recognition
 
 ### Features
 
 - Real-time speech recognition for Omani Arabic dialect
 - Ambient noise calibration
-- Google Cloud Speech-to-Text integration
+- **Google Cloud Speech-to-Text integration**
+- **Azure Cognitive Services Speech integration** (planned)
 - Error handling for authentication and recognition issues
+- Secure credentials management
 
 ### Security Note
 
-- **Never commit your Google Cloud credentials JSON file to version control**
-- The credentials file is included in `.gitignore` for security
+- **Never commit credentials to version control**
+- Google Cloud JSON credentials are excluded in `.gitignore`
+- Azure credentials.md file is excluded in `.gitignore`
 - Keep your service account credentials secure and rotate them regularly
+- Use credential templates provided for secure setup
 
 ### Project Structure
 
@@ -56,9 +82,14 @@ A speech-to-text system designed for Omani Arabic dialect using Google Cloud Spe
 omani-therapist-agent/
 ├── speech2texttest/
 │   ├── google/
-│   │   ├── testgoogle.ipynb          # Main testing notebook
+│   │   ├── testgoogle.ipynb          # Google Cloud testing notebook
 │   │   └── [your-credentials].json   # Google Cloud credentials (not tracked)
-│   └── azure/                        # Future Azure integration
+│   └── azure/
+│       ├── credentials_template.md   # Template for Azure credentials
+│       ├── credentials.md            # Your Azure credentials (not tracked)
+│       ├── testazureaudio.ipynb      # Azure audio file transcription
+│       ├── testazuremic.ipynb        # Azure microphone transcription
+│       └── testazure_realtime_continuous recoginition.ipynb # Real-time recognition
 ├── .gitignore                        # Excludes credentials and sensitive files
 └── README.md                         # This file
 ```

@@ -1,6 +1,9 @@
-# Google Cloud credentials - NEVER commit these files!
+# Credentials - NEVER commit these files!
 *.json
 speech2texttest/google/fifth-composite-447618-f0-107a2a701931.json
+
+# Azure credentials
+speech2texttest/azure/credentials.md
 
 # Python
 __pycache__/
