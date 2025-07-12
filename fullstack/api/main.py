@@ -1,0 +1,292 @@
+import os
+import base64
+import tempfile
+import re
+import time
+import logging
+from typing import Optional
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import requests
+from dotenv import load_dotenv
+from omani_therapist_ai import OmaniTherapistAI, TimingMetrics
+from pydub import AudioSegment
+
+# Load environment variables
+load_dotenv(dotenv_path='../.env')
+load_dotenv()
+
+# Setup logger
+logger = logging.getLogger(__name__)
+
+app = FastAPI(title="Omani Therapist AI API", version="1.0.0")
+
+# CORS setup for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify exact origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize AI system
+try:
+    therapist_ai = OmaniTherapistAI()
+    print("✅ Omani Therapist AI initialized successfully")
+except Exception as e:
+    print(f"❌ Failed to initialize AI system: {e}")
+    therapist_ai = None
+
+# Crisis detection patterns (expandable)
+CRISIS_PATTERNS = [
+    r'\b(suicide|انتحار|اقتل نفسي|أريد أن أموت)\b',
+    r'\b(hurt myself|أؤذي نفسي|أضر نفسي)\b',
+    r'\b(end it all|أنهي كل شيء|لا أستطيع المتابعة)\b',
+    r'\b(help me|ساعدني|أحتاج مساعدة عاجلة)\b'
+]
+
+def detect_crisis(text: str) -> bool:
+    """Basic crisis detection using regex patterns (expandable with ML)"""
+    text_lower = text.lower()
+    for pattern in CRISIS_PATTERNS:
+        if re.search(pattern, text_lower, re.IGNORECASE):
+            return True
+    return False
+
+def enhance_ai_prompt_for_crisis(user_text: str, is_crisis: bool) -> str:
+    """Enhance AI prompt based on crisis detection (expandable)"""
+    if is_crisis:
+        crisis_guidance = """
+        IMPORTANT: The user may be in distress. Please:
+        1. Show empathy and validate their feelings
+        2. Encourage them to seek professional help immediately
+        3. Provide local crisis helpline information if available
+        4. Avoid giving medical advice
+        5. Be supportive but direct them to qualified professionals
+        """
+        return f"{crisis_guidance}\n\nUser message: {user_text}"
+    return user_text
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "ok",
+        "ai_system": "initialized" if therapist_ai else "failed",
+        "timestamp": time.time()
+    }
+
+@app.post("/api/audio")
+async def process_audio(file: UploadFile = File(...)):
+    """Process audio input: STT -> AI -> TTS"""
+    if not therapist_ai:
+        raise HTTPException(status_code=500, detail="AI system not initialized")
+    
+    # Validate file
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    ext = os.path.splitext(file.filename)[-1].lower()
+    allowed_exts = ['.wav', '.webm', '.ogg', '.mp3', '.flac', '.m4a']
+    if ext not in allowed_exts:
+        raise HTTPException(status_code=400, detail=f"Unsupported audio format: {ext}")
+    
+    tmp_path = None
+    wav_path = None
+    try:
+        # Save uploaded file temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+        
+        # Convert audio to a standard WAV format for robust processing by Azure.
+        # This requires FFmpeg to be installed on the system.
+        logger.info(f"Converting received audio file ({ext}) to WAV format...")
+        audio_segment = AudioSegment.from_file(tmp_path)
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as wav_tmp:
+            wav_path = wav_tmp.name
+        
+        # Export to 16kHz mono WAV, optimal for speech recognition
+        audio_segment.export(wav_path, format="wav", parameters=["-ar", "16000", "-ac", "1"])
+        logger.info(f"Successfully converted audio to WAV at: {wav_path}")
+        
+        # STT: Convert audio to text by passing the standardized WAV file path
+        user_text, timing = therapist_ai.get_user_speech_from_file(wav_path)
+        
+    except Exception as e:
+        logger.error(f"Failed to process audio file: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Audio processing failed. Ensure FFmpeg is installed. Error: {str(e)}")
+    finally:
+        # Clean up temporary files
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        if wav_path and os.path.exists(wav_path):
+            os.unlink(wav_path)
+        
+    if not user_text or not timing:
+        return JSONResponse(
+            status_code=200,
+            content={"error": "No speech recognized. Please try speaking clearly."}
+        )
+    
+    try:
+        # Crisis detection (expandable)
+        is_crisis = detect_crisis(user_text)
+        enhanced_text = enhance_ai_prompt_for_crisis(user_text, is_crisis)
+        
+        # AI: Generate response
+        ai_response = therapist_ai.get_ai_response(enhanced_text, timing)
+        
+        if not ai_response:
+            return JSONResponse(
+                status_code=200,
+                content={"error": "AI failed to generate response. Please try again."}
+            )
+        
+        # TTS: Convert response to speech
+        tts_audio = therapist_ai.speak_text(ai_response, return_bytes=True)
+        
+        if not isinstance(tts_audio, (bytes, bytearray)):
+            return JSONResponse(
+                status_code=200,
+                content={"error": "Speech synthesis failed. Please try again."}
+            )
+        
+        # Encode audio as base64
+        audio_b64 = base64.b64encode(tts_audio).decode('utf-8')
+        
+        return {
+            "recognized_text": user_text,
+            "ai_response": ai_response,
+            "tts_audio_base64": audio_b64,
+            "is_crisis_detected": is_crisis,
+            "timing": timing.__dict__ if timing else None,
+            "timestamp": time.time()
+        }
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Processing failed: {str(e)}"}
+        )
+
+@app.post("/api/text")
+async def process_text(text: str = Form(...)):
+    """Process text input: Text -> AI -> TTS"""
+    if not therapist_ai:
+        raise HTTPException(status_code=500, detail="AI system not initialized")
+    
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="No text provided")
+    
+    try:
+        # Create dummy timing metrics
+        now = time.time()
+        timing = TimingMetrics(
+            speech_start_time=now,
+            speech_end_time=now,
+            ai_processing_start_time=now,
+            ai_processing_end_time=now,
+            tts_start_time=now,
+            tts_end_time=now,
+            voice_playback_start_time=now
+        )
+        
+        # Crisis detection
+        is_crisis = detect_crisis(text)
+        enhanced_text = enhance_ai_prompt_for_crisis(text, is_crisis)
+        
+        # AI: Generate response
+        ai_response = therapist_ai.get_ai_response(enhanced_text, timing)
+        
+        if not ai_response:
+            return JSONResponse(
+                status_code=200,
+                content={"error": "AI failed to generate response. Please try again."}
+            )
+        
+        # TTS: Convert response to speech
+        tts_audio = therapist_ai.speak_text(ai_response, return_bytes=True)
+        
+        if not isinstance(tts_audio, (bytes, bytearray)):
+            return JSONResponse(
+                status_code=200,
+                content={"error": "Speech synthesis failed. Please try again."}
+            )
+        
+        # Encode audio as base64
+        audio_b64 = base64.b64encode(tts_audio).decode('utf-8')
+        
+        return {
+            "user_text": text,
+            "ai_response": ai_response,
+            "tts_audio_base64": audio_b64,
+            "is_crisis_detected": is_crisis,
+            "timing": timing.__dict__,
+            "timestamp": time.time()
+        }
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Processing failed: {str(e)}"}
+        )
+
+@app.get("/api/session/transcript")
+async def get_session_transcript():
+    """Get current session transcript (expandable)"""
+    if not therapist_ai:
+        raise HTTPException(status_code=500, detail="AI system not initialized")
+    
+    try:
+        # Save transcript and return path
+        transcript_file = therapist_ai.save_session_transcript()
+        
+        if transcript_file:
+            return {
+                "transcript_file": transcript_file,
+                "message_count": len(therapist_ai.session_memory),
+                "timing_stats": therapist_ai.get_timing_statistics()
+            }
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Failed to save transcript"}
+            )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Transcript generation failed: {str(e)}"}
+        )
+
+@app.post("/api/session/reset")
+async def reset_session():
+    """Reset conversation session (expandable)"""
+    if not therapist_ai:
+        raise HTTPException(status_code=500, detail="AI system not initialized")
+    
+    try:
+        therapist_ai.reset_session()
+        return {
+            "status": "session_reset",
+            "timestamp": time.time()
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Session reset failed: {str(e)}"}
+        )
+
+# TODO: Expandable endpoints for future features
+# @app.post("/api/emotional-analysis")  # For emotional state detection
+# @app.get("/api/session/history")      # For conversation history UI
+# @app.post("/api/crisis/escalate")     # For crisis escalation to professionals
+# @app.get("/api/cultural/context")     # For cultural context adaptation
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000) 

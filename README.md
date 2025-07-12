@@ -80,15 +80,15 @@ python demo_ai_conversation.py
 ```
 
 **Option B: Claude-Only System**
-```bash
+   ```bash
 cd ai_systems/claude_only
 pip install -r ../main_system/requirements.txt
 python demo_claude_conversation.py
-```
+   ```
 
 ### 2. Configure Environment
 
-```bash
+   ```bash
 # Copy environment template to project root
 cp config/environment/env_template.txt .env
 
@@ -110,7 +110,7 @@ python test_azure_omani_tts.py
 ```
 
 **Test Speech-to-Text:**
-```bash
+   ```bash
 cd speech_services/speech_to_text/azure
 python testazure_mic_arabic.py
 ```

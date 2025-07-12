@@ -23,6 +23,10 @@ from datetime import datetime
 from typing import List, Dict, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 import io
+import tempfile
+import wave
+import struct
+from pydub import AudioSegment
 
 # Azure Speech Services
 import azure.cognitiveservices.speech as speechsdk
@@ -301,6 +305,97 @@ class OmaniTherapistAI:
             print(f"🚨 Speech recognition error: {e}")
             return None, None
     
+    def get_user_speech_from_bytes(self, audio_bytes: bytes, timeout_seconds: int = 10) -> Tuple[Optional[str], Optional[TimingMetrics]]:
+        try:
+            speech_start_time = time.time()
+            
+            # Detect audio format from header
+            audio_format = self._detect_audio_format(audio_bytes)
+            logger.info(f"Detected audio format: {audio_format}")
+            
+            # Create appropriate audio input stream based on format
+            if audio_format == "webm":
+                # For WebM/Opus format, use compressed audio stream
+                stream = speechsdk.audio.PushAudioInputStream(
+                    stream_format=speechsdk.audio.AudioStreamFormat(
+                        compressed_stream_format=speechsdk.audio.AudioStreamContainerFormat.OGG_OPUS
+                    )
+                )
+            else:
+                # For other formats, use default push stream
+                stream = speechsdk.audio.PushAudioInputStream()
+            
+            # Create audio config with the stream
+            audio_config = speechsdk.AudioConfig(stream=stream)
+            
+            # Create speech recognizer
+            recognizer = speechsdk.SpeechRecognizer(
+                speech_config=self.stt_config,
+                audio_config=audio_config
+            )
+            
+            # Push audio data to the stream
+            stream.write(audio_bytes)
+            stream.close()
+            
+            # Recognize speech
+            result = recognizer.recognize_once_async().get()
+            speech_end_time = time.time()
+            
+            if result and result.reason == speechsdk.ResultReason.RecognizedSpeech:
+                user_text = result.text.strip()
+                logger.info(f"✅ Recognized from bytes: {user_text}")
+                
+                timing_metrics = TimingMetrics(
+                    speech_start_time=speech_start_time,
+                    speech_end_time=speech_end_time,
+                    ai_processing_start_time=0,
+                    ai_processing_end_time=0,
+                    tts_start_time=0,
+                    tts_end_time=0,
+                    voice_playback_start_time=0
+                )
+                
+                return user_text, timing_metrics
+                
+            elif result and result.reason == speechsdk.ResultReason.NoMatch:
+                logger.warning("❌ No speech could be recognized from bytes")
+                return None, None
+                
+            elif result and result.reason == speechsdk.ResultReason.Canceled:
+                cancellation_details = result.cancellation_details
+                logger.error(f"Speech recognition canceled: {cancellation_details.reason}")
+                if cancellation_details.reason == speechsdk.CancellationReason.Error:
+                    logger.error(f"Error details: {cancellation_details.error_details}")
+                return None, None
+                
+            else:
+                logger.warning(f"Unexpected result from bytes: {result.reason if result else 'None'}")
+                return None, None
+                
+        except Exception as e:
+            logger.error(f'STT from bytes error: {e}')
+            return None, None
+    
+    def _detect_audio_format(self, audio_bytes: bytes) -> str:
+        """Detect audio format from file header"""
+        if len(audio_bytes) < 20:
+            return "unknown"
+        
+        # Check for WebM signature
+        if audio_bytes[:4] == b'\x1a\x45\xdf\xa3':
+            return "webm"
+        
+        # Check for WAV signature
+        if audio_bytes[:4] == b'RIFF' and audio_bytes[8:12] == b'WAVE':
+            return "wav"
+        
+        # Check for OGG signature
+        if audio_bytes[:4] == b'OggS':
+            return "ogg"
+        
+        return "unknown"
+    
     def _prepare_messages_for_ai(self) -> List[Dict[str, str]]:
         """
         Prepare recent conversation history for AI API call
@@ -347,7 +442,11 @@ class OmaniTherapistAI:
                 frequency_penalty=0.3
             )
             
+            if response and hasattr(response, 'choices') and response.choices:
             ai_response = response.choices[0].message.content.strip()
+            else:
+                logger.error("OpenAI response format unexpected")
+                return None
             logger.info("✅ OpenAI response received")
             return ai_response
             
@@ -487,66 +586,34 @@ class OmaniTherapistAI:
         return ssml.strip()
     
     def speak_text(self, text: str, voice_gender: str = "female", 
-                   emotion: str = "neutral", timing_metrics: Optional[TimingMetrics] = None) -> bool:
-        """
-        Convert text to speech and play it
-        
-        Args:
-            text: Arabic text to synthesize
-            voice_gender: 'male' or 'female'
-            emotion: 'calm', 'encouraging', 'excited', 'sad', 'neutral'
-            timing_metrics: Optional timing metrics object to update
-            
-        Returns:
-            True if successful, False otherwise
-        """
+                   emotion: str = "neutral", timing_metrics: Optional[TimingMetrics] = None, return_bytes: bool = False):
         try:
-            # Record TTS start time
             if timing_metrics:
                 timing_metrics.tts_start_time = time.time()
-            
             voice_name = self.voices.get(voice_gender, self.voices['female'])
             self.tts_config.speech_synthesis_voice_name = voice_name
-            
-            # Create SSML text with emotional control
             ssml_text = self._create_ssml_text(text, emotion, voice_name)
-            
-            # Synthesize to memory for immediate playback
             synthesizer = speechsdk.SpeechSynthesizer(
                 speech_config=self.tts_config,
                 audio_config=None
             )
-            
-            logger.info(f"🔊 Speaking: {text[:50]}...")
-            print(f"🔊 Speaking: {text[:50]}...")
-            
             result = synthesizer.speak_ssml_async(ssml_text).get()
-            
-            # Record TTS end time
             if timing_metrics:
                 timing_metrics.tts_end_time = time.time()
-            
-            if result and result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+            if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+                if return_bytes:
+                    return result.audio_data
+                else:
                 if result.audio_data:
-                    # Record voice playback start time
                     if timing_metrics:
                         timing_metrics.voice_playback_start_time = time.time()
-                    
-                    # Play audio using pygame
                     audio_stream = io.BytesIO(result.audio_data)
                     pygame.mixer.music.load(audio_stream)
                     pygame.mixer.music.play()
-                    
-                    # Wait for playback to complete
                     while pygame.mixer.music.get_busy():
                         pygame.time.wait(100)
-                
-                logger.info("✅ Speech synthesis completed")
                 return True
-            else:
-                logger.error(f"TTS Error: {result.reason if result else 'Unknown error'}")
-                return False
-                
+            return False if not return_bytes else b''
         except Exception as e:
             logger.error(f"TTS Exception: {e}")
             print(f"🚨 Speech synthesis error: {e}")
