@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Omani Therapist AI - Claude Opus 4 Only Version
-===============================================
+Omani Therapist AI Conversation System
+=====================================
 
 This system integrates:
 - Speech-to-Text (STT) for Arabic speech recognition
-- Claude Opus 4 (claude-opus-4-20250514) for therapeutic conversations
+- OpenAI GPT-4o with Claude fallback for therapeutic conversations
 - Text-to-Speech (TTS) for natural Omani Arabic responses
 - Session memory management
 - Culturally-sensitive therapeutic conversations
@@ -27,7 +27,12 @@ import io
 # Azure Speech Services
 import azure.cognitiveservices.speech as speechsdk
 
-# AI Services - Claude Only
+# AI Services
+try:
+    import openai
+except ImportError:
+    openai = None
+
 try:
     import anthropic
 except ImportError:
@@ -39,8 +44,9 @@ import pygame
 # Environment variables
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from project root
+load_dotenv(dotenv_path='../../.env')  # Look for .env in project root
+load_dotenv()  # Also check current directory as fallback
 
 # Configure logging
 logging.basicConfig(
@@ -94,26 +100,27 @@ class TimingMetrics:
     def print_timing_report(self):
         """Print detailed timing report"""
         print("\n" + "=" * 50)
-        print("⏱️  TIMING PERFORMANCE REPORT (Claude Opus 4)")
+        print("⏱️  TIMING PERFORMANCE REPORT")
         print("=" * 50)
         print(f"🎤 Speech Recognition: {self.stt_duration:.2f}s")
-        print(f"🤖 Claude Processing:  {self.ai_processing_duration:.2f}s")
+        print(f"🤖 AI Processing:     {self.ai_processing_duration:.2f}s")
         print(f"🔊 TTS Synthesis:     {self.tts_duration:.2f}s")
         print(f"📊 TOTAL LATENCY:     {self.total_latency:.2f}s")
         print("=" * 50)
 
 
-class OmaniTherapistAI_OnlyClaude:
+class OmaniTherapistAI:
     """
-    Main conversation agent that integrates STT, Claude Opus 4, and TTS
+    Main conversation agent that integrates STT, AI, and TTS
     for therapeutic conversations in Omani Arabic with performance timing
     """
     
     def __init__(self):
-        """Initialize the Omani Therapist AI system with Claude Opus 4 only"""
+        """Initialize the Omani Therapist AI system"""
         # Load API keys from environment
         self.azure_speech_key = os.getenv('AZURE_SPEECH_KEY')
         self.azure_region = os.getenv('AZURE_SPEECH_REGION', 'uaenorth')
+        self.openai_api_key = os.getenv('OPENAI_API_KEY')
         self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
         
         # Try backup Azure key if primary not found
@@ -124,22 +131,29 @@ class OmaniTherapistAI_OnlyClaude:
         if not self.azure_speech_key:
             raise ValueError("Azure Speech Key not found. Please set AZURE_SPEECH_KEY in environment variables.")
         
+        if not self.openai_api_key:
+            logger.warning("OpenAI API key not found. Only Claude fallback will be available.")
+        
         if not self.anthropic_api_key:
-            raise ValueError("Anthropic API key not found. Please set ANTHROPIC_API_KEY in environment variables.")
+            logger.warning("Anthropic API key not found. No fallback available if OpenAI fails.")
         
-        # Initialize Claude client
-        if not anthropic:
-            raise ImportError("Anthropic library not found. Please install with: pip install anthropic")
+        # Initialize AI clients
+        if self.openai_api_key and openai:
+            openai.api_key = self.openai_api_key
+            self.openai_client = openai
         
-        try:
-            # Initialize Anthropic client for Claude Opus 4
-            self.claude_client = anthropic.Anthropic(
-                api_key=self.anthropic_api_key
-            )
-            logger.info("Claude Opus 4 client initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Claude client: {e}")
-            raise
+        if self.anthropic_api_key and anthropic:
+            try:
+                # Initialize Anthropic client according to official documentation
+                self.claude_client = anthropic.Anthropic(
+                    api_key=self.anthropic_api_key
+                )
+                logger.info("Anthropic client initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Anthropic client: {e}")
+                self.claude_client = None
+        else:
+            self.claude_client = None
         
         # Initialize Azure Speech services
         self._setup_azure_speech()
@@ -154,18 +168,17 @@ class OmaniTherapistAI_OnlyClaude:
         # Timing metrics storage
         self.timing_history: List[TimingMetrics] = []
         
-        # Therapeutic system prompt for Claude Opus 4
-        self.system_prompt = """أنت طبيب نفسي عماني مختص ومتفهم ومتطور. تجيب دائماً باللغة العربية العمانية، وتستخدم لغة حساسة ثقافياً ومراعية للأسرة والإيمان، والاستشارة العلاجية المتقدمة. إذا ذكر المستخدم ضائقة شديدة، شجعه دائماً على طلب المساعدة من شخص حقيقي أو خط المساعدة المحلي.
+        # Therapeutic system prompt
+        self.system_prompt = """أنت طبيب نفسي عماني مختص ومتفهم. تجيب دائماً باللغة العربية العمانية، وتستخدم لغة حساسة ثقافياً ومراعية للأسرة والإيمان، والاستشارة العلاجية. إذا ذكر المستخدم ضائقة شديدة، شجعه دائماً على طلب المساعدة من شخص حقيقي أو خط المساعدة المحلي. 
 
 كن:
-- متعاطف ومتفهم بعمق
+- متعاطف ومتفهم
 - محترم للثقافة العمانية والإسلامية
-- مهني في التعامل مع القضايا النفسية المعقدة
-- مشجع ومحفز بطريقة إيجابية ومبتكرة
+- مهني في التعامل مع القضايا النفسية
+- مشجع ومحفز بطريقة إيجابية
 - حريص على توجيه المستخدم للمساعدة المهنية عند الحاجة
-- قادر على فهم التفاصيل الدقيقة والمشاعر المعقدة
 
-استخدم العبارات العمانية الأصيلة واللهجة المحلية عند المناسب. اعتمد على أحدث الممارسات في العلاج النفسي مع احترام التقاليد الثقافية العمانية."""
+استخدم العبارات العمانية الأصيلة واللهجة المحلية عند المناسب."""
         
         # Add system message to memory
         self.session_memory.append(ConversationMessage(
@@ -181,10 +194,10 @@ class OmaniTherapistAI_OnlyClaude:
         }
         
         # Default settings
-        self.default_voice_gender = "female"
+        self.default_voice_gender = "male"
         self.default_emotion = "neutral"
         
-        logger.info("Omani Therapist AI (Claude Opus 4 Only) initialized successfully")
+        logger.info("Omani Therapist AI initialized successfully")
     
     def _setup_azure_speech(self):
         """Setup Azure Speech Services for STT and TTS"""
@@ -288,70 +301,103 @@ class OmaniTherapistAI_OnlyClaude:
             print(f"🚨 Speech recognition error: {e}")
             return None, None
     
-    def _prepare_messages_for_claude(self) -> Tuple[str, List[Dict[str, str]]]:
+    def _prepare_messages_for_ai(self) -> List[Dict[str, str]]:
         """
-        Prepare recent conversation history for Claude API call
+        Prepare recent conversation history for AI API call
         
         Returns:
-            Tuple of (system message, conversation messages)
+            List of message dictionaries for API
         """
         # Get recent messages (last N turns)
         recent_messages = self.session_memory[-self.max_memory_turns:]
         
-        # Separate system message from conversation
-        system_message = ""
-        conversation_messages = []
-        
+        # Convert to API format
+        api_messages = []
         for msg in recent_messages:
-            if msg.role == "system":
-                system_message = msg.content
-            else:
-                conversation_messages.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
+            api_messages.append({
+                "role": msg.role,
+                "content": msg.content
+            })
         
-        return system_message, conversation_messages
+        return api_messages
     
-    def _call_claude_opus4(self, system_message: str, messages: List[Dict[str, str]]) -> Optional[str]:
+    def _call_openai_gpt4(self, messages: List[Dict[str, str]]) -> Optional[str]:
         """
-        Call Claude Opus 4 API
+        Call OpenAI GPT-4o API
         
         Args:
-            system_message: System prompt
             messages: List of conversation messages
             
         Returns:
             AI response or None if failed
         """
         try:
-            logger.info("🤖 Calling Claude Opus 4...")
+            if not self.openai_api_key or not openai:
+                logger.warning("OpenAI API key not available")
+                return None
             
-            # Create Claude message with Opus 4 model (fallback to Sonnet if Opus 4 not available)
-            try:
-                response = self.claude_client.messages.create(
-                    model="claude-opus-4-20250514",  # Latest Claude Opus 4 model
-                    max_tokens=600,
-                    temperature=0.7,
-                    system=system_message,
-                    messages=messages
-                )
-            except Exception as opus_error:
-                logger.warning(f"Claude Opus 4 not available, falling back to Claude 3.5 Sonnet: {opus_error}")
-                response = self.claude_client.messages.create(
-                    model="claude-3-5-sonnet-20241022",  # Fallback to Claude 3.5 Sonnet
-                    max_tokens=600,
-                    temperature=0.7,
-                    system=system_message,
-                    messages=messages
-                )
+            logger.info("🤖 Calling OpenAI GPT-4o...")
+            
+            response = openai.ChatCompletion.create(
+                model="gpt-4o",  # Use GPT-4 Turbo (GPT-4o might not be available in older client)
+                messages=messages,
+                max_tokens=500,
+                temperature=0.7,
+                presence_penalty=0.3,
+                frequency_penalty=0.3
+            )
+            
+            ai_response = response.choices[0].message.content.strip()
+            logger.info("✅ OpenAI response received")
+            return ai_response
+            
+        except Exception as e:
+            logger.error(f"OpenAI API error: {e}")
+            return None
+    
+    def _call_claude_fallback(self, messages: List[Dict[str, str]]) -> Optional[str]:
+        """
+        Call Claude API as fallback
+        
+        Args:
+            messages: List of conversation messages
+            
+        Returns:
+            AI response or None if failed
+        """
+        try:
+            if not self.claude_client:
+                logger.warning("Claude client not available")
+                return None
+            
+            logger.info("🤖 Calling Claude (fallback)...")
+            
+            # Convert messages to Claude format
+            # Claude expects system message separate from conversation
+            system_message = ""
+            conversation_messages = []
+            
+            for msg in messages:
+                if msg["role"] == "system":
+                    system_message = msg["content"]
+                else:
+                    conversation_messages.append(msg)
+            
+            # Create Claude message
+            response = self.claude_client.messages.create(
+                model="claude-opus-4-20250514",  # Use Claude 3 Sonnet
+                max_tokens=500,
+                temperature=0.7,
+                system=system_message,
+                messages=conversation_messages
+            )
             
             # Extract text from response - handle both TextBlock and ToolUseBlock
             if response.content and len(response.content) > 0:
                 content_block = response.content[0]
                 if hasattr(content_block, 'text'):
                     ai_response = content_block.text.strip()
-                    logger.info("✅ Claude Opus 4 response received")
+                    logger.info("✅ Claude response received")
                     return ai_response
                 else:
                     logger.error(f"Claude response content type not supported: {type(content_block)}")
@@ -361,19 +407,19 @@ class OmaniTherapistAI_OnlyClaude:
                 return None
             
         except Exception as e:
-            logger.error(f"Claude Opus 4 API error: {e}")
+            logger.error(f"Claude API error: {e}")
             return None
     
     def get_ai_response(self, user_input: str, timing_metrics: TimingMetrics) -> Optional[str]:
         """
-        Get AI response using Claude Opus 4 only
+        Get AI response with OpenAI primary and Claude fallback
         
         Args:
             user_input: User's input text
             timing_metrics: Timing metrics object to update
             
         Returns:
-            AI response or None if failed
+            AI response or None if all services failed
         """
         # Record AI processing start time
         timing_metrics.ai_processing_start_time = time.time()
@@ -385,11 +431,16 @@ class OmaniTherapistAI_OnlyClaude:
             timestamp=datetime.now()
         ))
         
-        # Prepare messages for Claude
-        system_message, conversation_messages = self._prepare_messages_for_claude()
+        # Prepare messages for AI
+        messages = self._prepare_messages_for_ai()
         
-        # Call Claude Opus 4
-        ai_response = self._call_claude_opus4(system_message, conversation_messages)
+        # Try OpenAI first
+        ai_response = self._call_openai_gpt4(messages)
+        
+        # Fallback to Claude if OpenAI fails
+        if not ai_response:
+            logger.info("🔄 Falling back to Claude...")
+            ai_response = self._call_claude_fallback(messages)
         
         # Record AI processing end time
         timing_metrics.ai_processing_end_time = time.time()
@@ -403,12 +454,38 @@ class OmaniTherapistAI_OnlyClaude:
                 voice_gender=self.default_voice_gender,
                 emotion=self.default_emotion
             ))
-        else:
-            logger.error("❌ Claude Opus 4 failed to generate response")
         
         return ai_response
     
-
+    def _create_ssml_text(self, text: str, emotion: str = "neutral", 
+                         voice_name: Optional[str] = None) -> str:
+        """Create SSML formatted text with emotional control"""
+        if not voice_name:
+            voice_name = self.voices[self.default_voice_gender]
+        
+        # Emotion-specific prosody settings
+        emotion_settings = {
+            'calm': {'rate': 'slow', 'pitch': 'low'},
+            'encouraging': {'rate': 'medium', 'pitch': 'medium'},
+            'excited': {'rate': 'fast', 'pitch': 'high'},
+            'sad': {'rate': 'x-slow', 'pitch': 'x-low'},
+            'neutral': {'rate': 'medium', 'pitch': 'medium'}
+        }
+        
+        settings = emotion_settings.get(emotion, emotion_settings['neutral'])
+        
+        ssml = f"""
+        <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="ar-OM">
+            <voice name="{voice_name}">
+                <prosody rate="{settings['rate']}" pitch="{settings['pitch']}" volume="medium">
+                    <emphasis level="moderate">{text}</emphasis>
+                </prosody>
+            </voice>
+        </speak>
+        """
+        
+        return ssml.strip()
+    
     def speak_text(self, text: str, voice_gender: str = "female", 
                    emotion: str = "neutral", timing_metrics: Optional[TimingMetrics] = None) -> bool:
         """
@@ -431,7 +508,10 @@ class OmaniTherapistAI_OnlyClaude:
             voice_name = self.voices.get(voice_gender, self.voices['female'])
             self.tts_config.speech_synthesis_voice_name = voice_name
             
-            # Use simple text synthesis instead of SSML to avoid timeout issues
+            # Create SSML text with emotional control
+            ssml_text = self._create_ssml_text(text, emotion, voice_name)
+            
+            # Synthesize to memory for immediate playback
             synthesizer = speechsdk.SpeechSynthesizer(
                 speech_config=self.tts_config,
                 audio_config=None
@@ -440,8 +520,7 @@ class OmaniTherapistAI_OnlyClaude:
             logger.info(f"🔊 Speaking: {text[:50]}...")
             print(f"🔊 Speaking: {text[:50]}...")
             
-            # Use simple text synthesis which is faster and more reliable
-            result = synthesizer.speak_text_async(text).get()
+            result = synthesizer.speak_ssml_async(ssml_text).get()
             
             # Record TTS end time
             if timing_metrics:
@@ -464,43 +543,8 @@ class OmaniTherapistAI_OnlyClaude:
                 
                 logger.info("✅ Speech synthesis completed")
                 return True
-            elif result and result.reason == speechsdk.ResultReason.Canceled:
-                # Handle TTS cancellation with detailed error information
-                cancellation_details = result.cancellation_details
-                logger.error(f"TTS Canceled: {cancellation_details.reason}")
-                
-                if cancellation_details.reason == speechsdk.CancellationReason.Error:
-                    logger.error(f"TTS Error details: {cancellation_details.error_details}")
-                    
-                    # Check for specific error types
-                    error_details = str(cancellation_details.error_details).lower()
-                    
-                    if "401" in error_details or "unauthorized" in error_details:
-                        print("🚨 TTS Authentication Error:")
-                        print("   - Check your AZURE_SPEECH_KEY in .env file")
-                        print("   - Verify the key is valid and not expired")
-                        print("   - Ensure the region is correct (uaenorth)")
-                    elif "403" in error_details or "forbidden" in error_details:
-                        print("🚨 TTS Permission Error:")
-                        print("   - Your Azure subscription may not support this region")
-                        print("   - Try changing AZURE_SPEECH_REGION to 'eastus' or 'westus2'")
-                    elif "timeout" in error_details or "network" in error_details:
-                        print("🚨 TTS Network Error:")
-                        print("   - Check your internet connection")
-                        print("   - Try again in a few moments")
-                    elif "voice" in error_details or "neural" in error_details:
-                        print("🚨 TTS Voice Error:")
-                        print("   - The Omani voice may not be available in your region")
-                        print("   - Try using a different voice or region")
-                    else:
-                        print(f"🚨 TTS Error: {cancellation_details.error_details}")
-                        print("   - Check Azure Speech Service status")
-                        print("   - Verify your subscription is active")
-                
-                return False
             else:
                 logger.error(f"TTS Error: {result.reason if result else 'Unknown error'}")
-                print(f"🚨 TTS failed with reason: {result.reason if result else 'Unknown'}")
                 return False
                 
         except Exception as e:
@@ -529,7 +573,7 @@ class OmaniTherapistAI_OnlyClaude:
             'min_total_latency': min(total_latencies),
             'max_total_latency': max(total_latencies),
             'avg_stt_duration': sum(stt_durations) / len(stt_durations),
-            'avg_claude_duration': sum(ai_durations) / len(ai_durations),
+            'avg_ai_duration': sum(ai_durations) / len(ai_durations),
             'avg_tts_duration': sum(tts_durations) / len(tts_durations)
         }
     
@@ -542,7 +586,7 @@ class OmaniTherapistAI_OnlyClaude:
             return
         
         print("\n" + "=" * 60)
-        print("📊 CLAUDE OPUS 4 CONVERSATION TIMING STATISTICS")
+        print("📊 CONVERSATION TIMING STATISTICS")
         print("=" * 60)
         print(f"Total Conversations: {stats['total_conversations']}")
         print(f"Average Total Latency: {stats['avg_total_latency']:.2f}s")
@@ -551,7 +595,7 @@ class OmaniTherapistAI_OnlyClaude:
         print("-" * 60)
         print("BREAKDOWN BY COMPONENT:")
         print(f"  🎤 Speech Recognition: {stats['avg_stt_duration']:.2f}s avg")
-        print(f"  🤖 Claude Opus 4:     {stats['avg_claude_duration']:.2f}s avg")
+        print(f"  🤖 AI Processing:      {stats['avg_ai_duration']:.2f}s avg")
         print(f"  🔊 TTS Synthesis:      {stats['avg_tts_duration']:.2f}s avg")
         print("=" * 60)
     
@@ -567,16 +611,15 @@ class OmaniTherapistAI_OnlyClaude:
         """
         if not filename:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"therapy_session_claude_{timestamp}.txt"
+            filename = f"therapy_session_{timestamp}.txt"
         
         try:
             with open(filename, 'w', encoding='utf-8') as f:
-                f.write("Omani Therapist AI - Claude Opus 4 Session Transcript\n")
-                f.write("=" * 60 + "\n")
+                f.write("Omani Therapist AI - Session Transcript\n")
+                f.write("=" * 50 + "\n")
                 f.write(f"Session Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"AI Model: Claude Opus 4 (claude-opus-4-20250514)\n")
                 f.write(f"Total Messages: {len(self.session_memory)}\n")
-                f.write("=" * 60 + "\n\n")
+                f.write("=" * 50 + "\n\n")
                 
                 for i, msg in enumerate(self.session_memory, 1):
                     if msg.role != "system":  # Skip system message in transcript
@@ -587,9 +630,9 @@ class OmaniTherapistAI_OnlyClaude:
                         f.write("\n")
                 
                 # Add timing statistics
-                f.write("\n" + "=" * 60 + "\n")
-                f.write("CLAUDE OPUS 4 TIMING PERFORMANCE STATISTICS\n")
-                f.write("=" * 60 + "\n")
+                f.write("\n" + "=" * 50 + "\n")
+                f.write("TIMING PERFORMANCE STATISTICS\n")
+                f.write("=" * 50 + "\n")
                 
                 stats = self.get_timing_statistics()
                 if stats:
@@ -598,12 +641,12 @@ class OmaniTherapistAI_OnlyClaude:
                     f.write(f"Best Response Time: {stats['min_total_latency']:.2f}s\n")
                     f.write(f"Worst Response Time: {stats['max_total_latency']:.2f}s\n")
                     f.write(f"Average STT Duration: {stats['avg_stt_duration']:.2f}s\n")
-                    f.write(f"Average Claude Opus 4 Duration: {stats['avg_claude_duration']:.2f}s\n")
+                    f.write(f"Average AI Duration: {stats['avg_ai_duration']:.2f}s\n")
                     f.write(f"Average TTS Duration: {stats['avg_tts_duration']:.2f}s\n")
                 else:
                     f.write("No timing data available\n")
             
-            logger.info(f"Claude session transcript saved to: {filename}")
+            logger.info(f"Session transcript saved to: {filename}")
             return filename
             
         except Exception as e:
@@ -620,15 +663,14 @@ class OmaniTherapistAI_OnlyClaude:
             content=self.system_prompt,
             timestamp=datetime.now()
         ))
-        logger.info("Claude session reset")
+        logger.info("Session reset")
     
     def run_conversation_loop(self):
         """
-        Main conversation loop with timing measurements (Claude Opus 4 only)
+        Main conversation loop with timing measurements
         """
-        print("🇴🇲 Omani Therapist AI - Claude Opus 4 Edition")
+        print("🇴🇲 Omani Therapist AI - Conversation Started")
         print("=" * 60)
-        print("🤖 Powered by Claude Opus 4 (claude-opus-4-20250514)")
         print("🎤 Speak in Arabic to begin conversation")
         print("🔊 The AI will respond in Omani Arabic")
         print("💬 Say 'انتهى' or 'exit' to end the session")
@@ -637,7 +679,7 @@ class OmaniTherapistAI_OnlyClaude:
         print("=" * 60)
         
         # Welcome message
-        welcome_msg = "أهلاً وسهلاً بك في جلسة العلاج النفسي مع كلود أوبوس 4. أنا هنا لمساعدتك والاستماع إليك بأحدث التقنيات. كيف حالك اليوم؟"
+        welcome_msg = "أهلاً وسهلاً بك في جلسة العلاج النفسي. أنا هنا لمساعدتك والاستماع إليك. كيف حالك اليوم؟"
         self.speak_text(welcome_msg, self.default_voice_gender, "encouraging")
         
         conversation_count = 0
@@ -655,28 +697,28 @@ class OmaniTherapistAI_OnlyClaude:
                 
                 # Check for exit commands
                 if any(word in user_input.lower() for word in ['انتهى', 'exit', 'bye', 'وداعا']):
-                    print("👋 Ending Claude session...")
+                    print("👋 Ending session...")
                     
                     # Print final timing statistics
                     self.print_timing_statistics()
                     
                     # Farewell message
-                    farewell_msg = "شكراً لك على الجلسة مع كلود أوبوس 4. أتمنى أن تكون مفيدة. إلى اللقاء، وأتمنى لك كل الخير."
+                    farewell_msg = "شكراً لك على الجلسة. أتمنى أن تكون مفيدة. إلى اللقاء، وأتمنى لك كل الخير."
                     self.speak_text(farewell_msg, self.default_voice_gender, "calm")
                     
                     # Save transcript
                     transcript_file = self.save_session_transcript()
                     if transcript_file:
-                        print(f"📄 Claude session transcript saved: {transcript_file}")
+                        print(f"📄 Session transcript saved: {transcript_file}")
                     
                     break
                 
                 # Check for reset command
                 if any(word in user_input.lower() for word in ['بداية جديدة', 'reset', 'start over']):
-                    print("🔄 Resetting Claude conversation...")
+                    print("🔄 Resetting conversation...")
                     self.reset_session()
                     
-                    reset_msg = "حسناً، لنبدأ من جديد مع كلود أوبوس 4. كيف يمكنني مساعدتك اليوم؟"
+                    reset_msg = "حسناً، لنبدأ من جديد. كيف يمكنني مساعدتك اليوم؟"
                     self.speak_text(reset_msg, self.default_voice_gender, "encouraging")
                     conversation_count = 0
                     continue
@@ -697,22 +739,22 @@ class OmaniTherapistAI_OnlyClaude:
                         # Print timing report for this turn
                         timing_metrics.print_timing_report()
                         
-                        print(f"✅ Claude conversation turn {conversation_count} completed")
+                        print(f"✅ Conversation turn {conversation_count} completed")
                     else:
                         print("❌ Failed to speak response")
                         # Still continue the conversation
                         
                 else:
-                    print("🚨 Claude Opus 4 failed to generate response")
+                    print("🚨 Failed to get AI response")
                     # Fallback response
-                    fallback_msg = "أعتذر، واجهت مشكلة تقنية. هل يمكنك إعادة السؤال؟"
+                    fallback_msg = "أعتذر، لم أتمكن من فهم طلبك. هل يمكنك إعادة السؤال؟"
                     self.speak_text(fallback_msg, self.default_voice_gender, "neutral")
                 
                 # Brief pause between turns
                 time.sleep(0.5)
                 
         except KeyboardInterrupt:
-            print("\n🛑 Claude conversation interrupted by user")
+            print("\n🛑 Conversation interrupted by user")
             
             # Print final timing statistics
             self.print_timing_statistics()
@@ -720,23 +762,23 @@ class OmaniTherapistAI_OnlyClaude:
             # Save transcript
             transcript_file = self.save_session_transcript()
             if transcript_file:
-                print(f"📄 Claude session transcript saved: {transcript_file}")
+                print(f"📄 Session transcript saved: {transcript_file}")
                 
         except Exception as e:
-            logger.error(f"Claude conversation loop error: {e}")
-            print(f"🚨 Claude conversation error: {e}")
+            logger.error(f"Conversation loop error: {e}")
+            print(f"🚨 Conversation error: {e}")
             
         finally:
-            print("🏁 Claude Opus 4 conversation ended")
+            print("🏁 Conversation ended")
 
 
 def main():
-    """Main function to run the Omani Therapist AI with Claude Opus 4 only"""
-    print("Omani Therapist AI - Claude Opus 4 Edition")
-    print("=" * 60)
+    """Main function to run the Omani Therapist AI"""
+    print("Omani Therapist AI - Conversation System")
+    print("=" * 50)
     
     # Check environment variables
-    required_vars = ['AZURE_SPEECH_KEY', 'ANTHROPIC_API_KEY']
+    required_vars = ['AZURE_SPEECH_KEY']
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     
     if missing_vars:
@@ -746,25 +788,32 @@ def main():
         print("\nPlease set up your .env file with:")
         print("   AZURE_SPEECH_KEY=your_azure_key")
         print("   AZURE_SPEECH_REGION=uaenorth")
+        print("   OPENAI_API_KEY=your_openai_key")
         print("   ANTHROPIC_API_KEY=your_anthropic_key")
         return
     
+    # Optional API keys warnings
+    if not os.getenv('OPENAI_API_KEY'):
+        print("⚠️  Warning: OPENAI_API_KEY not set - only Claude fallback available")
+    
+    if not os.getenv('ANTHROPIC_API_KEY'):
+        print("⚠️  Warning: ANTHROPIC_API_KEY not set - no fallback if OpenAI fails")
+    
     try:
-        # Initialize the Claude-only AI system
-        therapist_ai = OmaniTherapistAI_OnlyClaude()
+        # Initialize the AI system
+        therapist_ai = OmaniTherapistAI()
         
         # Run the conversation loop
         therapist_ai.run_conversation_loop()
         
     except Exception as e:
         logger.error(f"System initialization error: {e}")
-        print(f"🚨 Failed to initialize Claude system: {e}")
+        print(f"🚨 Failed to initialize system: {e}")
         print("\nTroubleshooting:")
         print("1. Verify your Azure Speech Services credentials")
-        print("2. Verify your Anthropic API key")
-        print("3. Check your internet connection")
-        print("4. Ensure microphone permissions are enabled")
-        print("5. Install required dependencies: pip install anthropic azure-cognitiveservices-speech pygame python-dotenv")
+        print("2. Check your internet connection")
+        print("3. Ensure microphone permissions are enabled")
+        print("4. Install required dependencies: pip install openai anthropic azure-cognitiveservices-speech pygame python-dotenv")
 
 
 if __name__ == "__main__":

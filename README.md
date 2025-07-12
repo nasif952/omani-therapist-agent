@@ -1,114 +1,197 @@
-# Omani Therapist Agent
+# Omani Therapist AI - Voice-Based Mental Health Chatbot
 
-A speech-to-text system designed for Omani Arabic dialect using Google Cloud Speech-to-Text API and Azure Cognitive Services.
+A culturally-sensitive, voice-only mental health chatbot system designed specifically for Omani Arabic speakers, featuring real-time conversational AI with <20 second latency.
 
-## Setup Instructions
-
-### Prerequisites
-
-1. Python 3.7 or higher
-2. **Google Cloud Setup:**
-   - Google Cloud account with Speech-to-Text API enabled
-   - Google Cloud service account with appropriate permissions
-3. **Azure Setup (Optional):**
-   - Azure account with Cognitive Services
-   - Speech Services resource created
-
-### Installation
-
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/nasif952/omani-therapist-agent.git
-   cd omani-therapist-agent
-   ```
-
-2. Install required dependencies:
-   ```bash
-   # For Google Cloud
-   pip install speech_recognition google-cloud-speech pyaudio
-   
-   # For Azure (optional)
-   pip install azure-cognitiveservices-speech
-   ```
-
-3. Set up credentials:
-   
-   **Google Cloud:**
-   - Download your Google Cloud service account JSON credentials file
-   - Place it in the `speech2texttest/google/` directory
-   - Update the filename in `testgoogle.ipynb` if different from the default
-   
-   **Azure (Optional):**
-   - Copy `speech2texttest/azure/credentials_template.md` to `speech2texttest/azure/credentials.md`
-   - Fill in your Azure Speech Services keys and endpoint
-   - The credentials.md file is automatically excluded from version control
-
-### Usage
-
-**Google Cloud Speech-to-Text:**
-1. Open the Jupyter notebook:
-   ```bash
-   jupyter notebook speech2texttest/google/testgoogle.ipynb
-   ```
-2. Run the cells to test speech-to-text with Omani Arabic (`ar-OM`)
-
-**Azure Cognitive Services (when available):**
-1. Navigate to the Azure notebooks in `speech2texttest/azure/`
-2. Choose from the available notebooks:
-   - `testazureaudio.ipynb` - Audio file transcription
-   - `testazuremic.ipynb` - Microphone input transcription  
-   - `testazure_realtime_continuous recoginition.ipynb` - Real-time continuous recognition
-
-### Features
-
-- Real-time speech recognition for Omani Arabic dialect
-- Ambient noise calibration
-- **Google Cloud Speech-to-Text integration**
-- **Azure Cognitive Services Speech integration** (planned)
-- Error handling for authentication and recognition issues
-- Secure credentials management
-
-### Security Note
-
-- **Never commit credentials to version control**
-- Google Cloud JSON credentials are excluded in `.gitignore`
-- Azure credentials.md file is excluded in `.gitignore`
-- Keep your service account credentials secure and rotate them regularly
-- Use credential templates provided for secure setup
-
-### Project Structure
+## 🏗️ Project Structure
 
 ```
-omani-therapist-agent/
-├── speech2texttest/
-│   ├── google/
-│   │   ├── testgoogle.ipynb          # Google Cloud testing notebook
-│   │   └── [your-credentials].json   # Google Cloud credentials (not tracked)
-│   └── azure/
-│       ├── credentials_template.md   # Template for Azure credentials
-│       ├── credentials.md            # Your Azure credentials (not tracked)
-│       ├── testazureaudio.ipynb      # Azure audio file transcription
-│       ├── testazuremic.ipynb        # Azure microphone transcription
-│       └── testazure_realtime_continuous recoginition.ipynb # Real-time recognition
-├── .gitignore                        # Excludes credentials and sensitive files
-└── README.md                         # This file
+📁 main project/
+├── 🤖 ai_systems/                    # AI Integration Systems
+│   ├── main_system/                  # Primary AI system (OpenAI + Claude)
+│   │   ├── omani_therapist_ai.py    # Main AI conversation system
+│   │   ├── demo_ai_conversation.py  # Demo script with multiple modes
+│   │   ├── requirements.txt         # Python dependencies
+│   │   └── README.md               # System documentation
+│   └── claude_only/                 # Claude-only AI system
+│       ├── omani_therapist_ai_onlyclaude.py  # Pure Claude implementation
+│       ├── demo_claude_conversation.py       # Claude demo script
+│       └── README.md                         # Claude system docs
+│
+├── 🗣️ speech_services/              # Speech Processing Services
+│   ├── text_to_speech/              # TTS Implementation
+│   │   ├── azure_setup_instructions.md  # Azure TTS setup guide
+│   │   ├── therapy_tts_example.py      # TTS example scripts
+│   │   ├── test_azure_omani_tts.py     # TTS testing utilities
+│   │   ├── check_credentials.py        # Credential validation
+│   │   ├── setup_env.py               # Environment setup
+│   │   ├── omani_tts_samples/         # Audio samples
+│   │   ├── requirements.txt           # TTS dependencies
+│   │   ├── ENV_SETUP_GUIDE.md         # Environment guide
+│   │   ├── QUICK_START.md             # Quick start guide
+│   │   └── TTS services comparison.md  # Service comparison
+│   └── speech_to_text/              # STT Implementation
+│       ├── azure/                   # Azure Speech Services
+│       │   ├── testazure_mic_arabic.py        # Arabic microphone test
+│       │   ├── testazure_mic_arabic_english.py # Bilingual test
+│       │   └── credentials_template.md        # Credential template
+│       └── google/                  # Google Speech Services
+│           └── testgoogle.ipynb     # Google STT testing
+│
+├── 📚 documentation/                # Project Documentation
+│   ├── technical_assessment/        # Assessment Documents
+│   │   ├── Technical Assessment Omani Therapi.md     # Requirements
+│   │   └── Technical Assessment_ OMANI-Therapist-Voice (2).pdf
+│   ├── setup_guides/               # Setup Documentation
+│   └── 7_12_2025_progress.md       # Development progress
+│
+├── 📊 data/                        # Data and Samples
+│   ├── audio_samples/              # Audio Sample Files
+│   │   └── omani_tts_samples/      # Omani TTS voice samples
+│   └── session_transcripts/        # Session Data
+│       ├── therapy_session_20250712_113157/  # Session recordings
+│       └── therapy_session_20250712_114633/  # Session recordings
+│
+├── 🔧 tools/                       # Utility Tools
+│   ├── security/                   # Security Tools
+│   │   ├── security_check.py       # Security scanning script
+│   │   └── GITHUB_UPLOAD_CHECKLIST.md  # Security checklist
+│   └── testing/                    # Testing Tools
+│
+├── ⚙️ config/                      # Configuration Files
+│   ├── environment/                # Environment Configuration
+│   │   ├── env_template.txt        # Environment template
+│   │   └── env_example.txt         # Environment examples
+│   └── deployment/                 # Deployment Configuration
+│       └── DEPLOYMENT_PLAN.md      # Deployment strategy
+│
+├── 🔒 .gitignore                   # Git ignore patterns
+└── 📖 README.md                    # This file
 ```
 
-### Troubleshooting
+## 🚀 Quick Start
 
-1. **FileNotFoundError**: Ensure your credentials JSON file is in the correct directory
-2. **DefaultCredentialsError**: Verify you're using `credentials_json_path` parameter
-3. **ValueError for language**: Use `language_code="ar-OM"` instead of `language="ar-OM"`
-4. **Audio issues**: Check microphone permissions and PyAudio installation
+### 1. Choose Your AI System
 
-### Contributing
+**Option A: Main System (OpenAI + Claude)**
+```bash
+cd ai_systems/main_system
+pip install -r requirements.txt
+python demo_ai_conversation.py
+```
 
-Feel free to contribute by:
-- Adding support for other Arabic dialects
-- Improving speech recognition accuracy
-- Adding Azure Cognitive Services integration
-- Enhancing error handling and user experience
+**Option B: Claude-Only System**
+```bash
+cd ai_systems/claude_only
+pip install -r ../main_system/requirements.txt
+python demo_claude_conversation.py
+```
 
-### License
+### 2. Configure Environment
 
-This project is intended for educational and research purposes. 
+```bash
+# Copy environment template to project root
+cp config/environment/env_template.txt .env
+
+# Edit .env with your API keys
+# AZURE_SPEECH_KEY=your_azure_key
+# AZURE_SPEECH_REGION=your_region
+# OPENAI_API_KEY=your_openai_key
+# ANTHROPIC_API_KEY=your_anthropic_key
+```
+
+**Note:** The `.env` file should be in the project root directory so all systems can access it.
+
+### 3. Test Speech Services
+
+**Test Text-to-Speech:**
+```bash
+cd speech_services/text_to_speech
+python test_azure_omani_tts.py
+```
+
+**Test Speech-to-Text:**
+```bash
+cd speech_services/speech_to_text/azure
+python testazure_mic_arabic.py
+```
+
+## 🎯 Key Features
+
+- **🗣️ Voice-Only Interface**: Complete hands-free interaction
+- **⚡ Real-time Processing**: <20 second response latency
+- **🇴🇲 Omani Arabic Support**: Native ar-OM language support
+- **🧠 Dual AI Systems**: OpenAI GPT-4o + Claude Opus 4
+- **🔄 Automatic Fallback**: Seamless API switching
+- **🔒 Security First**: No hardcoded credentials
+- **📊 Performance Monitoring**: Complete timing metrics
+
+## 🛠️ Technical Stack
+
+- **STT**: Azure Speech Services (ar-OM)
+- **TTS**: Azure Speech Services (Omani voices)
+- **AI Models**: OpenAI GPT-4o, Claude Opus 4, Claude 3.5 Sonnet
+- **Audio**: 48kHz PCM, real-time processing
+- **Languages**: Python 3.8+, PowerShell
+
+## 📋 System Requirements
+
+- Python 3.8 or higher
+- Windows 10/11 (tested)
+- Microphone and speakers
+- Internet connection
+- Azure Speech Services account
+- OpenAI API key (for main system)
+- Anthropic API key (for Claude systems)
+
+## 🔧 Development
+
+### Running Security Checks
+```bash
+cd tools/security
+python security_check.py
+```
+
+### Testing Individual Components
+```bash
+# Test TTS only
+cd speech_services/text_to_speech
+python therapy_tts_example.py
+
+# Test STT only
+cd speech_services/speech_to_text/azure
+python testazure_mic_arabic.py
+```
+
+## 📖 Documentation
+
+- **Setup Guides**: `documentation/setup_guides/`
+- **Technical Assessment**: `documentation/technical_assessment/`
+- **Development Progress**: `documentation/7_12_2025_progress.md`
+- **API Documentation**: Each system's README.md
+
+## 🔒 Security
+
+- All sensitive data removed from repository
+- Environment variables for API keys
+- Comprehensive `.gitignore` patterns
+- Security scanning tools included
+
+## 🤝 Contributing
+
+1. Review the technical assessment in `documentation/technical_assessment/`
+2. Check the development progress in `documentation/7_12_2025_progress.md`
+3. Run security checks before commits: `tools/security/security_check.py`
+4. Follow the folder structure for new additions
+
+## 📞 Support
+
+For technical issues or questions about the implementation, refer to:
+- System-specific READMEs in each AI system folder
+- Setup guides in `documentation/setup_guides/`
+- Configuration examples in `config/environment/`
+
+---
+
+**Project Status**: ✅ Complete - Ready for deployment
+**Last Updated**: January 12, 2025
+**Version**: 1.0.0 

@@ -22,8 +22,9 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from project root
+load_dotenv(dotenv_path='../../.env')  # Look for .env in project root
+load_dotenv()  # Also check current directory as fallback
 
 
 class TherapyTTSService:

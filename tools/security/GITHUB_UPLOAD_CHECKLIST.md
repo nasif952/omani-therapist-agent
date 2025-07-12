@@ -4,7 +4,7 @@
 
 ### ✅ API Keys & Credentials Secured
 - [x] **Deleted** `tts+stt+ai/option files/setup_env.py` - contained real Azure & OpenAI keys
-- [x] **Sanitized** `tts+stt+ai/option files/env_template.txt` - removed partial Azure key
+- [x] **Sanitized** `config/environment/env_template.txt` - removed partial Azure key
 - [x] **Deleted** `speech2texttest/azure/testazure_realtime_continuous recoginition.ipynb` - contained real Azure key
 - [x] **Confirmed** all remaining files use placeholder values only
 
@@ -57,32 +57,34 @@ therapy_session_*.txt
 ## 📁 Safe Files for GitHub
 
 ### Core System Files
-- `tts+stt+ai/omani_therapist_ai.py` - Main system (OpenAI + Claude)
-- `tts+stt+ai/claude_only/omani_therapist_ai_onlyclaude.py` - Claude-only system
-- `tts+stt+ai/demo_ai_conversation.py` - Demo script
-- `tts+stt+ai/claude_only/demo_claude_conversation.py` - Claude demo
+- `ai_systems/main_system/omani_therapist_ai.py` - Main system (OpenAI + Claude)
+- `ai_systems/claude_only/omani_therapist_ai_onlyclaude.py` - Claude-only system
+- `ai_systems/main_system/demo_ai_conversation.py` - Demo script
+- `ai_systems/claude_only/demo_claude_conversation.py` - Claude demo
 
 ### Documentation
 - `README.md` - Project overview
-- `tts+stt+ai/README.md` - System documentation
-- `tts+stt+ai/claude_only/README.md` - Claude-only documentation
-- `DEPLOYMENT_PLAN.md` - Deployment guide
+- `ai_systems/main_system/README.md` - System documentation
+- `ai_systems/claude_only/README.md` - Claude-only documentation
+- `config/deployment/DEPLOYMENT_PLAN.md` - Deployment guide
+- `documentation/` - Technical assessment and progress docs
 
 ### Configuration Templates
-- `env_example.txt` - Environment template
-- `tts+stt+ai/option files/env_template.txt` - TTS environment template
-- `requirements.txt` files - Dependencies
+- `config/environment/env_example.txt` - Environment template
+- `config/environment/env_template.txt` - Environment template
+- `ai_systems/main_system/requirements.txt` - Dependencies
 
 ### Speech Processing
-- `text2speech/` - TTS implementation and examples
-- `speech2texttest/` - STT testing (credentials removed)
+- `speech_services/text_to_speech/` - TTS implementation and examples
+- `speech_services/speech_to_text/` - STT testing (credentials removed)
 
 ## 🚨 Files NOT Uploaded (Protected by .gitignore)
 
 ### Environment Files
 - `.env` - Contains real API keys
-- `text2speech/.env` - Contains real Azure keys
-- `tts+stt+ai/.env` - Contains real API keys
+- `speech_services/text_to_speech/.env` - Contains real Azure keys
+- `ai_systems/main_system/.env` - Contains real API keys
+- `ai_systems/claude_only/.env` - Contains real API keys
 
 ### Personal Data
 - `therapy_session_*.txt` - User conversations

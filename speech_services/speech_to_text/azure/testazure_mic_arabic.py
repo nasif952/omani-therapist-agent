@@ -2,8 +2,9 @@ import azure.cognitiveservices.speech as speechsdk
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from project root
+load_dotenv(dotenv_path='../../../.env')  # Look for .env in project root
+load_dotenv()  # Also check current directory as fallback
 
 # Get credentials from environment variables
 speech_key = os.getenv('AZURE_SPEECH_KEY')
