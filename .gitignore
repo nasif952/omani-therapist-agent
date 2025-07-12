@@ -5,6 +5,9 @@ speech2texttest/google/fifth-composite-447618-f0-107a2a701931.json
 # Azure credentials
 speech2texttest/azure/credentials.md
 
+# Files with exposed credentials - DO NOT COMMIT
+speech2texttest/azure/testazure_realtime_continuous recoginition.ipynb
+
 # Python
 __pycache__/
 *.py[cod]
@@ -33,14 +36,32 @@ MANIFEST
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Environment variables
+# Environment variables - SECURITY CRITICAL
 .env
+.env.local
+.env.production
+.env.development
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Azure credentials - NEVER commit these!
+azure_credentials.json
+credentials.json
+
+# Audio files (large files - save bandwidth)
+*.wav
+*.mp3
+omani_tts_samples/
+therapy_session_*/
+
+# Additional Python files
+*.pyc
+*.pyo
+*.pyd
 
 # IDE
 .vscode/
