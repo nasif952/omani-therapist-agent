@@ -360,9 +360,9 @@ async def websocket_audio_stream(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_bytes()
-            logger.info(f"Received audio chunk of size {len(data)} bytes")
+            # logger.info(f"Received audio chunk of size {len(data)} bytes")
             stream.write(data)
-            logger.info("Wrote audio chunk to Azure stream")
+            # logger.info("Wrote audio chunk to Azure stream")
             if last_final_transcript:
                 logger.info(f"Final transcript detected: {last_final_transcript}")
                 if therapist_ai is None:
@@ -379,18 +379,30 @@ async def websocket_audio_stream(websocket: WebSocket):
                 if ai_response:
                     logger.info("Starting TTS streaming...")
                     await websocket.send_json({"type": "tts_start"})
-                    tts_synth = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=None)
-                    tts_result = tts_synth.speak_text_async(ai_response).get()
-                    if tts_result is not None and hasattr(tts_result, 'audio_data_stream') and tts_result.audio_data_stream is not None:
-                        stream_reader = tts_result.audio_data_stream
+                    
+                    # Use the therapist_ai instance to generate TTS audio
+                    tts_audio_bytes = therapist_ai.speak_text(ai_response, return_bytes=True)
+                    
+                    if tts_audio_bytes and isinstance(tts_audio_bytes, bytes):
+                        logger.info(f"TTS audio generated, size: {len(tts_audio_bytes)} bytes")
+                        
+                        # Stream the audio in chunks
                         chunk_size = 4096
-                        while True:
-                            chunk = stream_reader.read(chunk_size)
-                            if not chunk:
-                                break
-                            logger.info(f"Sending TTS audio chunk of size {len(chunk)} bytes")
+                        chunk_count = 0
+                        total_bytes = 0
+                        
+                        for i in range(0, len(tts_audio_bytes), chunk_size):
+                            chunk = tts_audio_bytes[i:i + chunk_size]
+                            chunk_count += 1
+                            total_bytes += len(chunk)
+                            logger.info(f"Sending TTS audio chunk #{chunk_count}, size {len(chunk)} bytes, total so far: {total_bytes}")
                             chunk_b64 = base64.b64encode(chunk).decode('utf-8')
                             await websocket.send_json({"type": "tts_audio", "chunk": chunk_b64})
+                        
+                        logger.info(f"TTS streaming complete: {chunk_count} chunks, {total_bytes} total bytes")
+                    else:
+                        logger.error(f"TTS audio generation failed: {type(tts_audio_bytes)}")
+                    
                     await websocket.send_json({"type": "tts_end"})
                     logger.info("TTS streaming finished")
                 last_final_transcript = None

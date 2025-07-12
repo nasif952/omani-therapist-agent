@@ -14,6 +14,9 @@ export default function MicStreamTranscriber() {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const ttsAudioChunks = useRef<string[]>([]);
 
+  // Only allow recording if not playing TTS
+  const canRecord = !isTTSPlaying;
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -50,7 +53,7 @@ export default function MicStreamTranscriber() {
             for (let i = 0; i < inputData.length; i++) {
               pcmData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
             }
-            console.log('Sending PCM audio chunk of size', pcmData.byteLength);
+            // console.log('Sending PCM audio chunk of size', pcmData.byteLength); // Suppress logs for PCM chunk
             ws.send(pcmData.buffer);
           }
         };
@@ -73,8 +76,10 @@ export default function MicStreamTranscriber() {
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
+        console.log('[WS] Received message type:', msg.type, 'data length:', msg.chunk ? msg.chunk.length : 'N/A');
+        
         if (msg.type === "partial_transcript" || msg.type === "final_transcript") {
-          console.log("Transcription:", msg.text);
+          // console.log("Transcription:", msg.text); // Suppress logs for transcription
           setTranscript((prev) =>
             msg.type === "final_transcript"
               ? prev + " " + msg.text
@@ -91,14 +96,22 @@ export default function MicStreamTranscriber() {
           console.log("TTS streaming started");
           ttsAudioChunks.current = [];
           setIsTTSPlaying(false);
+          // Disconnect microphone to prevent overlap
+          if (processorRef.current) {
+            processorRef.current.disconnect();
+            console.log("Microphone disconnected during TTS");
+          }
         } else if (msg.type === "tts_audio") {
-          console.log("Received TTS audio chunk");
+          console.log("Received TTS audio chunk, length:", msg.chunk.length);
           ttsAudioChunks.current.push(msg.chunk);
+          console.log("TTS chunks array length now:", ttsAudioChunks.current.length);
         } else if (msg.type === "tts_end") {
           console.log("TTS streaming ended, playing audio");
           playTTSBufferedAudio();
         } else if (msg.type === "error") {
           console.error("Backend error:", msg.text);
+        } else {
+          console.log('[WS] Unknown message type:', msg.type);
         }
       };
     } catch (error) {
@@ -127,52 +140,95 @@ export default function MicStreamTranscriber() {
     stopAudioCapture();
   };
 
+  const reconnectMicrophone = () => {
+    if (mediaStreamRef.current && audioContextRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+      const source = audioContextRef.current.createMediaStreamSource(mediaStreamRef.current);
+      const processor = audioContextRef.current.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+      
+      processor.onaudioprocess = (e) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          const inputData = e.inputBuffer.getChannelData(0);
+          // Convert float32 to int16 PCM
+          const pcmData = new Int16Array(inputData.length);
+          for (let i = 0; i < inputData.length; i++) {
+            pcmData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+          }
+          // console.log('Sending PCM audio chunk of size', pcmData.byteLength); // Suppress logs for PCM chunk
+          wsRef.current.send(pcmData.buffer);
+        }
+      };
+      
+      source.connect(processor);
+      processor.connect(audioContextRef.current.destination);
+      console.log("Microphone reconnected after TTS");
+    }
+  };
+
   const playTTSBufferedAudio = async () => {
+    console.log('[TTS DIAG] playTTSBufferedAudio called');
+    console.log('[TTS DIAG] ttsAudioChunks length:', ttsAudioChunks.current.length);
     if (ttsAudioChunks.current.length === 0) return;
     setIsTTSPlaying(true);
-    
+    console.log("[TTS] Started playing TTS audio");
     try {
       // Concatenate all base64 chunks
-      const combinedBase64 = ttsAudioChunks.current.join('');
-      
-      // Convert base64 to binary
-      const binaryString = atob(combinedBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+      const totalLength = ttsAudioChunks.current.reduce((acc, b64) => acc + atob(b64).length, 0);
+      const bytes = new Uint8Array(totalLength);
+      let offset = 0;
+      // Replace for...of with entries with a standard for loop
+      for (let i = 0; i < ttsAudioChunks.current.length; ++i) {
+        const b64 = ttsAudioChunks.current[i];
+        console.log(`[TTS DIAG] Processing TTS chunk #${i}, length:`, b64.length);
+        const chunk = atob(b64);
+        for (let j = 0; j < chunk.length; ++j) {
+          bytes[offset++] = chunk.charCodeAt(j);
+        }
       }
-      
-      // Create audio blob and play
-      console.log('First 16 bytes of TTS audio:', Array.from(bytes.slice(0, 16)));
+      // Diagnostics
       const blob = new Blob([bytes], { type: 'audio/mp3' });
       const audioUrl = URL.createObjectURL(blob);
-      console.log('TTS audio blob size:', blob.size, 'type:', blob.type);
-      window.open(audioUrl, '_blank'); // Open in new tab for manual test
+      console.log('[TTS DIAG] Blob size:', blob.size, 'type:', blob.type);
+      console.log('[TTS DIAG] First 16 bytes:', Array.from(bytes.slice(0, 16)));
+      console.log('[TTS DIAG] Creating audio element for TTS playback');
+      // window.open(audioUrl, '_blank'); // Remove this line to prevent pop-up
       const audio = new Audio(audioUrl);
-      
+      audio.onplay = () => console.log('[TTS DIAG] Audio element playback started');
       audio.onended = () => {
+        console.log('[TTS DIAG] Audio element playback ended');
         setIsTTSPlaying(false);
         URL.revokeObjectURL(audioUrl);
+        // Reconnect microphone after TTS finishes
+        reconnectMicrophone();
       };
-      
       audio.onerror = (e) => {
-        console.error('Audio playback error:', e);
         setIsTTSPlaying(false);
+        console.error('[TTS] Error playing TTS audio', e);
         URL.revokeObjectURL(audioUrl);
+        // Reconnect microphone even if there's an error
+        reconnectMicrophone();
       };
-      
-      console.log('Playing TTS audio...');
-      await audio.play();
-    } catch (e) {
+      console.log('[TTS DIAG] Calling audio.play()...');
+      audio.play().then(() => {
+        console.log('[TTS DIAG] audio.play() resolved, playback started');
+      }).catch((err) => {
+        console.error('[TTS DIAG] audio.play() error:', err);
+        setIsTTSPlaying(false);
+        // Reconnect microphone if playback fails
+        reconnectMicrophone();
+      });
+    } catch (err) {
       setIsTTSPlaying(false);
-      console.error('Error playing TTS audio', e);
+      console.error('[TTS] Error in playTTSBufferedAudio', err);
+      // Reconnect microphone if there's an error
+      reconnectMicrophone();
     }
   };
 
   return (
     <div>
       <h2>Live Omani Arabic Transcription</h2>
-      <button onClick={isRecording ? stopRecording : startRecording}>
+      <button onClick={startRecording} disabled={!canRecord}>
         {isRecording ? "Stop" : "Start"} Recording
       </button>
       <div style={{ marginTop: 20, whiteSpace: "pre-wrap" }}>
