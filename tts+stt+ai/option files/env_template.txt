@@ -1,0 +1,30 @@
+# Omani Therapist AI - Environment Configuration
+# ==============================================
+# Copy this file to .env and fill in your actual API keys
+
+# Azure Speech Services (REQUIRED)
+# Get these from Azure Portal > Speech Services
+AZURE_SPEECH_KEY=your_azure_speech_key_here
+AZURE_SPEECH_REGION=uaenorth
+
+# OpenAI API (REQUIRED - Primary AI)
+# Get this from OpenAI Platform > API Keys
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Anthropic API (OPTIONAL - Fallback AI)
+# Get this from Anthropic Console > API Keys
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Optional: Backup Azure Speech Key
+# AZURE_SPEECH_KEY_BACKUP=your_backup_azure_key_here
+
+# Optional: Custom Settings
+# AZURE_SPEECH_REGION=uaenorth
+# DEFAULT_VOICE_GENDER=female
+# DEFAULT_EMOTION=neutral
+# MAX_MEMORY_TURNS=10
+
+# Example format (use placeholder values only):
+# AZURE_SPEECH_KEY=your_64_character_azure_speech_key_here
+# OPENAI_API_KEY=sk-proj-your_openai_key_here
+# ANTHROPIC_API_KEY=sk-ant-api03-your_anthropic_key_here 

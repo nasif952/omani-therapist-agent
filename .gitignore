@@ -1,14 +1,17 @@
-# Credentials - NEVER commit these files!
-*.json
-speech2texttest/google/fifth-composite-447618-f0-107a2a701931.json
+# Omani Therapist AI - Git Ignore File
+# ===================================
+# This file prevents sensitive information from being uploaded to GitHub
 
-# Azure credentials
-speech2texttest/azure/credentials.md
+# CRITICAL: Environment files with API keys
+.env
+.env.*
+*.env
+env_local.txt
+credentials.txt
+keys.txt
+secrets.txt
 
-# Files with exposed credentials - DO NOT COMMIT
-speech2texttest/azure/testazure_realtime_continuous recoginition.ipynb
-
-# Python
+# Python files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -26,49 +29,147 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Environment variables - SECURITY CRITICAL
-.env
-.env.local
-.env.production
-.env.development
-.venv
-env/
+# Virtual environments
 venv/
+env/
 ENV/
 env.bak/
 venv.bak/
+.venv/
 
-# Azure credentials - NEVER commit these!
-azure_credentials.json
-credentials.json
-
-# Audio files (large files - save bandwidth)
-*.wav
-*.mp3
-omani_tts_samples/
-therapy_session_*/
-
-# Additional Python files
-*.pyc
-*.pyo
-*.pyd
-
-# IDE
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# OS
+# OS files
 .DS_Store
-Thumbs.db 
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Audio files (might contain sensitive recordings)
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.flac
+*.ogg
+
+# Session transcripts (might contain personal information)
+therapy_session_*.txt
+session_*.txt
+conversation_*.txt
+*session*.txt
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Azure/AWS config files
+.azure/
+.aws/
+
+# API key files (additional patterns)
+*api_key*
+*secret*
+*password*
+*token*
+*credentials*
+
+# Google Cloud credentials
+*.json
+*credentials*.json
+*service-account*.json
+
+# Log files
+*.log
+logs/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Documentation builds
+docs/_build/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+.coverage
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Translations
+*.mo
+*.pot
+
+# Flask/Django
+instance/
+.webassets-cache
+local_settings.py
+db.sqlite3
+
+# Scrapy
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/ 
