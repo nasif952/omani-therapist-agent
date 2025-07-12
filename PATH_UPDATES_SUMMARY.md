@@ -214,3 +214,26 @@ If further reorganization is needed:
 **Status:** ✅ **All path updates completed successfully**  
 **Date:** January 12, 2025  
 **Verified:** Environment loading works from all directories 
+
+## 2025-07-13: Realtime Audio, Turn-Taking, and v3_realtime_audio Branch
+
+### Major Changes
+- Implemented **realtime audio streaming** for both STT (speech-to-text) and TTS (text-to-speech) between frontend and backend.
+- Enforced **strict turn-taking**: user cannot speak while TTS is playing; mic is disabled during TTS playback and re-enabled after.
+- Fixed all major bugs in TTS streaming, chunking, and playback (no more popups, audio plays in background).
+- Added detailed diagnostics and logging for TTS and WebSocket message flow.
+- Updated frontend chat UI to show full conversation history (alternating 'Me' and 'AI Therapist' messages).
+- Created and pushed new branches: `fullstack_v2` (stable fullstack) and `v3_realtime_audio` (latest, strict turn-taking, all fixes).
+- Updated `README.md` with new features, setup, and usage for v3.
+
+### Files/Branches
+- `fullstack_realtime/frontend/src/MicStreamTranscriber.tsx` (major logic for streaming, playback, UI)
+- `fullstack_realtime/api/main.py` (WebSocket, TTS chunking, bugfixes)
+- `README.md` (v3 features, setup)
+- Branches: `fullstack_v2`, `v3_realtime_audio`
+
+### See also
+- `7_13_2025.md` (detailed daily log)
+- `Left_to_do.md` (remaining work, roadmap, alternatives)
+
+--- 
