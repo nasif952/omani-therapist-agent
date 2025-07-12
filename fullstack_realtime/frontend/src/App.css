@@ -1,0 +1,516 @@
+/* Omani Therapist AI - Application Styles */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
+  line-height: 1.6;
+  color: #333;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.app-header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.app-header h1 {
+  font-size: 2.5rem;
+  color: #2c5530;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: #666;
+  font-weight: 400;
+}
+
+/* Main Content */
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Status Bar */
+.status-bar {
+  padding: 15px 20px;
+  background: #e8f5e8;
+  border: 2px solid #4caf50;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.status-bar.crisis {
+  background: #ffebee;
+  border-color: #f44336;
+  color: #c62828;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* Crisis Alert */
+.crisis-alert {
+  background: #ffcdd2;
+  border: 2px solid #f44336;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 10px 0;
+  animation: slideIn 0.5s ease-out;
+}
+
+.crisis-alert h3 {
+  color: #c62828;
+  margin-bottom: 10px;
+}
+
+.crisis-alert p {
+  color: #d32f2f;
+  margin-bottom: 8px;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Mode Toggle */
+.mode-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.mode-toggle button {
+  padding: 12px 24px;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.mode-toggle button.active {
+  background: #2c5530;
+  color: white;
+  border-color: #2c5530;
+}
+
+.mode-toggle button:hover:not(.active) {
+  background: #f5f5f5;
+  border-color: #bbb;
+}
+
+/* Voice Section */
+.voice-section {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 15px;
+  padding: 30px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.recording-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.record-btn {
+  padding: 20px 40px;
+  font-size: 1.3rem;
+  border: none;
+  border-radius: 50px;
+  background: #4caf50;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+}
+
+.record-btn:hover {
+  background: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+}
+
+.record-btn.recording {
+  background: #f44336;
+  animation: recordingPulse 1s infinite;
+}
+
+@keyframes recordingPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.record-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.audio-preview {
+  margin: 10px 0;
+}
+
+.audio-preview audio {
+  width: 100%;
+  max-width: 400px;
+}
+
+.process-btn {
+  padding: 15px 30px;
+  font-size: 1.1rem;
+  border: 2px solid #2c5530;
+  border-radius: 25px;
+  background: #2c5530;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.process-btn:hover:not(:disabled) {
+  background: #1e3a21;
+  transform: translateY(-1px);
+}
+
+.process-btn:disabled {
+  background: #ccc;
+  border-color: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Text Section */
+.text-section {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 15px;
+  padding: 30px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.text-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.text-input-area textarea {
+  padding: 15px;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 120px;
+  transition: border-color 0.3s ease;
+}
+
+.text-input-area textarea:focus {
+  outline: none;
+  border-color: #2c5530;
+}
+
+.text-input-area textarea:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+/* Current Conversation */
+.current-conversation {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.message {
+  margin: 15px 0;
+  padding: 15px;
+  border-radius: 10px;
+  line-height: 1.6;
+}
+
+.user-message {
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+}
+
+.ai-message {
+  background: #f3e5f5;
+  border-left: 4px solid #9c27b0;
+  position: relative;
+}
+
+.play-audio-btn {
+  margin-top: 10px;
+  padding: 8px 16px;
+  border: 1px solid #9c27b0;
+  background: white;
+  color: #9c27b0;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.play-audio-btn:hover:not(:disabled) {
+  background: #9c27b0;
+  color: white;
+}
+
+.play-audio-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Session Controls */
+.session-controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+
+.secondary-btn {
+  padding: 10px 20px;
+  border: 2px solid #666;
+  background: white;
+  color: #666;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.secondary-btn:hover {
+  background: #666;
+  color: white;
+}
+
+/* Conversation History */
+.conversation-history {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+}
+
+.conversation-history h3 {
+  color: #2c5530;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.history-item {
+  padding: 15px;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.history-item:hover {
+  background: #f0f0f0;
+  transform: translateY(-1px);
+}
+
+.history-item.crisis-turn {
+  border-color: #ffcdd2;
+  background: #ffebee;
+}
+
+.history-user {
+  color: #2196f3;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.history-ai {
+  color: #9c27b0;
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.crisis-indicator {
+  color: #f44336;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Footer */
+.app-footer {
+  text-align: center;
+  margin-top: 40px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.app-footer p {
+  margin: 5px 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .app {
+    padding: 10px;
+  }
+  
+  .app-header h1 {
+    font-size: 2rem;
+  }
+  
+  .voice-section,
+  .text-section,
+  .current-conversation,
+  .conversation-history {
+    padding: 20px;
+  }
+  
+  .record-btn {
+    padding: 15px 30px;
+    font-size: 1.1rem;
+  }
+  
+  .session-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .mode-toggle {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .mode-toggle button {
+    width: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header h1 {
+    font-size: 1.7rem;
+  }
+  
+  .subtitle {
+    font-size: 1rem;
+  }
+  
+  .record-btn {
+    padding: 12px 24px;
+    font-size: 1rem;
+  }
+  
+  .process-btn {
+    padding: 12px 24px;
+    font-size: 1rem;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .app {
+    background: white;
+  }
+  
+  .status-bar {
+    border-width: 3px;
+  }
+  
+  .crisis-alert {
+    border-width: 3px;
+  }
+}
+
+/* Focus styles for accessibility */
+button:focus,
+textarea:focus {
+  outline: 3px solid #2c5530;
+  outline-offset: 2px;
+}
+
+/* Loading states */
+.processing {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Cultural sensitivity - RTL support for Arabic text */
+.arabic-text {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Print styles */
+@media print {
+  .voice-section,
+  .session-controls,
+  .mode-toggle {
+    display: none;
+  }
+  
+  .app {
+    background: white;
+  }
+  
+  .current-conversation,
+  .conversation-history {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}
