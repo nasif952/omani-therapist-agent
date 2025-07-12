@@ -195,3 +195,51 @@ For technical issues or questions about the implementation, refer to:
 **Project Status**: ✅ Complete - Ready for deployment
 **Last Updated**: January 12, 2025
 **Version**: 1.0.0 
+
+## v3_realtime_audio Branch
+
+### Features
+- **Realtime audio streaming**: Audio is streamed from the browser to the backend and TTS audio is streamed back in real time.
+- **Strict turn-taking**: User cannot speak while the AI is talking. The microphone is disabled during TTS playback and re-enabled only after the AI response finishes.
+- **No popups for audio**: TTS audio plays automatically in the browser without opening new tabs or popups.
+- **All recent bug fixes and diagnostics**: Includes robust logging and diagnostics for both backend and frontend.
+
+### Setup & Usage
+
+1. **Clone the repository and checkout the branch:**
+   ```sh
+   git checkout v3_realtime_audio
+   ```
+
+2. **Backend setup:**
+   - Install dependencies:
+     ```sh
+     cd fullstack_realtime/api
+     pip install -r requirements.txt
+     ```
+   - Start the backend server:
+     ```sh
+     python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+     ```
+
+3. **Frontend setup:**
+   - Install dependencies:
+     ```sh
+     cd fullstack_realtime/frontend
+     npm install
+     ```
+   - Start the frontend:
+     ```sh
+     npm start
+     ```
+   - Open your browser to [http://localhost:3000](http://localhost:3000)
+
+### User Experience
+- Speak into your microphone. The system will transcribe your speech, generate an AI response, and play the response as TTS audio.
+- You cannot speak again until the AI's TTS response has finished playing.
+- All audio is handled in the background—no popups or new tabs.
+- Chat history is displayed in the UI for a natural conversation flow.
+
+---
+
+For more details, see the code and comments in the `v3_realtime_audio` branch. 
