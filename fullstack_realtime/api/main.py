@@ -41,12 +41,39 @@ except Exception as e:
     print(f"❌ Failed to initialize AI system: {e}")
     therapist_ai = None
 
-# Crisis detection patterns (expandable)
+# Enhanced crisis detection patterns with comprehensive Arabic and English keywords
 CRISIS_PATTERNS = [
-    r'\b(suicide|انتحار|اقتل نفسي|أريد أن أموت)\b',
-    r'\b(hurt myself|أؤذي نفسي|أضر نفسي)\b',
-    r'\b(end it all|أنهي كل شيء|لا أستطيع المتابعة)\b',
-    r'\b(help me|ساعدني|أحتاج مساعدة عاجلة)\b'
+    # Suicide-related keywords
+    r'\b(suicide|انتحار|اقتل نفسي|أريد أن أموت|أريد الموت|أفكر في الانتحار|أقتل روحي|أنهي حياتي)\b',
+    r'\b(kill myself|end my life|take my own life|أخلص من الحياة|أتخلص من نفسي|أموت أحسن)\b',
+    
+    # Self-harm keywords
+    r'\b(hurt myself|أؤذي نفسي|أضر نفسي|أجرح نفسي|أعذب نفسي|أقطع نفسي|أحرق نفسي)\b',
+    r'\b(cut myself|burn myself|harm myself|أضرب نفسي|أعاقب نفسي|أدمر نفسي)\b',
+    
+    # Hopelessness and despair
+    r'\b(end it all|أنهي كل شيء|لا أستطيع المتابعة|مافي أمل|مافي فايدة|تعبت من الحياة)\b',
+    r'\b(no hope|hopeless|give up|أستسلم|ما عاد أقدر|خلاص انتهيت|مافي معنى للحياة)\b',
+    r'\b(can\'t go on|can\'t take it|أبي أموت|أبي أخلص|تعبت من كل شي|ما عاد أتحمل)\b',
+    
+    # Immediate help requests
+    r'\b(help me|ساعدني|أحتاج مساعدة عاجلة|أحتاج مساعدة فورية|أنقذوني|أدعموني)\b',
+    r'\b(save me|rescue me|أنقذني|أحتاج أحد|أبي أحد يساعدني|أحتاج دعم نفسي)\b',
+    
+    # Crisis expressions in Omani dialect
+    r'\b(ما عاد أقدر|خلاص تعبت|أبي أموت|أبي أخلص|تعبت من الدنيا|مافي فايدة مني)\b',
+    r'\b(أحس أني عبء|أحس أني مافي داعي لوجودي|الناس أحسن بدوني|أنا مشكلة على الكل)\b',
+    
+    # Mental health crisis terms
+    r'\b(mental breakdown|nervous breakdown|انهيار نفسي|انهيار عصبي|أنهار نفسياً)\b',
+    r'\b(losing my mind|going crazy|أفقد عقلي|أصير مجنون|أحس أني أجن|عقلي راح)\b',
+    
+    # Substance abuse crisis
+    r'\b(overdose|جرعة زائدة|أبي أخذ حبوب كثير|أشرب دوا كثير|أبي أسكر وأموت)\b',
+    
+    # Family/relationship crisis
+    r'\b(أبي أهرب من البيت|أبي أترك كل شي|مافي أحد يحبني|كلهم يكرهونني)\b',
+    r'\b(أحس أني وحيد|مافي أحد يفهمني|أحس أني منبوذ|أحس أني مرفوض)\b'
 ]
 
 def detect_crisis(text: str) -> bool:
@@ -58,15 +85,35 @@ def detect_crisis(text: str) -> bool:
     return False
 
 def enhance_ai_prompt_for_crisis(user_text: str, is_crisis: bool) -> str:
-    """Enhance AI prompt based on crisis detection (expandable)"""
+    """Enhanced AI prompt based on crisis detection with cultural sensitivity"""
     if is_crisis:
         crisis_guidance = """
-        IMPORTANT: The user may be in distress. Please:
-        1. Show empathy and validate their feelings
-        2. Encourage them to seek professional help immediately
-        3. Provide local crisis helpline information if available
-        4. Avoid giving medical advice
-        5. Be supportive but direct them to qualified professionals
+        CRITICAL CRISIS RESPONSE PROTOCOL:
+        
+        The user has expressed thoughts or feelings that indicate they may be in serious psychological distress or crisis. 
+        
+        IMMEDIATE ACTIONS REQUIRED:
+        1. **Validate and Empathize**: Acknowledge their pain without minimizing it
+        2. **Cultural Sensitivity**: Respond in culturally appropriate Omani Arabic
+        3. **Immediate Safety**: Ask if they are safe right now
+        4. **Professional Help**: Strongly encourage immediate professional support
+        5. **Local Resources**: Provide Omani crisis contacts:
+           - Emergency: 999
+           - Mental Health Support: Ministry of Health Psychological Support +968 24601999
+           - Crisis Helpline: +968 80077000
+        
+        THERAPEUTIC APPROACH:
+        - Use Islamic principles of hope and divine mercy ("رحمة الله واسعة")
+        - Emphasize that seeking help is strength, not weakness
+        - Remind them they are valued and their life has meaning
+        - Avoid any statements that might increase guilt or shame
+        
+        SAFETY REMINDERS:
+        - This is an AI, not a replacement for professional help
+        - Encourage them to reach out to trusted family/friends
+        - If immediate danger, suggest going to nearest hospital
+        
+        Respond with deep empathy, cultural understanding, and urgent care while maintaining professional boundaries.
         """
         return f"{crisis_guidance}\n\nUser message: {user_text}"
     return user_text
