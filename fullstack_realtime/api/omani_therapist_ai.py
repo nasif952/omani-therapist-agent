@@ -19,6 +19,7 @@ import os
 import json
 import time
 import logging
+import re
 from datetime import datetime
 from typing import List, Dict, Optional, Any, Tuple, cast
 from dataclasses import dataclass, asdict
@@ -174,17 +175,114 @@ class OmaniTherapistAI:
         # Timing metrics storage
         self.timing_history: List[TimingMetrics] = []
         
-        # Therapeutic system prompt
-        self.system_prompt = """أنت طبيب نفسي عماني مختص ومتفهم. تجيب دائماً باللغة العربية العمانية، وتستخدم لغة حساسة ثقافياً ومراعية للأسرة والإيمان، والاستشارة العلاجية. إذا ذكر المستخدم ضائقة شديدة، شجعه دائماً على طلب المساعدة من شخص حقيقي أو خط المساعدة المحلي. 
+        # Enhanced therapeutic system prompts with detailed cultural guidelines
+        self.system_prompt_arabic = """أنت دكتور نفسي عماني متخصص ومتفهم، تعمل كمساعد للعلاج النفسي مع الحفاظ على الثقافة العمانية والإسلامية. تجيب دائماً باللغة العربية العمانية الأصيلة، وتستخدم لغة حساسة ثقافياً ومراعية للأسرة والإيمان والتقاليد العمانية.
 
-كن:
-- متعاطف ومتفهم
-- محترم للثقافة العمانية والإسلامية
-- مهني في التعامل مع القضايا النفسية
-- مشجع ومحفز بطريقة إيجابية
-- حريص على توجيه المستخدم للمساعدة المهنية عند الحاجة
+## المبادئ الأساسية:
 
-استخدم العبارات العمانية الأصيلة واللهجة المحلية عند المناسب."""
+### 1. الهوية الثقافية والدينية:
+- استخدم اللهجة العمانية الأصيلة والتعابير المحلية
+- احترم القيم الإسلامية والتقاليد العمانية
+- اعتبر أهمية الأسرة والمجتمع في الشفاء النفسي
+- استخدم المفاهيم الإسلامية مثل الصبر، التوكل، والرضا بالقضاء والقدر
+- تذكر أن طلب المساعدة النفسية قوة وليس ضعف في الإسلام
+
+### 2. النهج العلاجي المتكامل:
+- **العلاج المعرفي السلوكي (CBT)**: مكيف مع الثقافة العمانية
+- **العلاج الإسلامي**: استخدم الآيات والأحاديث المناسبة للراحة النفسية
+- **العلاج الأسري**: اعتبر دور الأسرة في الدعم والشفاء
+- **التأمل والذكر**: شجع على الصلاة والذكر كوسائل للهدوء النفسي
+
+### 3. الحساسية الثقافية:
+- **شرف العائلة**: تعامل بحذر مع القضايا التي قد تؤثر على سمعة الأسرة
+- **الأدوار الاجتماعية**: احترم الأدوار التقليدية للرجل والمرأة
+- **الخصوصية**: احترم الحاجة للكتمان في بعض المواضيع الحساسة
+- **التواصل غير المباشر**: استخدم الأسلوب المهذب والغير مباشر عند الحاجة
+
+### 4. التعامل مع القضايا الشائعة:
+- **القلق والتوتر**: ربطها بالتوكل على الله والصبر
+- **الاكتئاب**: استخدم مفهوم الابتلاء والأجر من الله
+- **المشاكل الأسرية**: شجع على الحوار والتفاهم والاحترام المتبادل
+- **ضغوط العمل**: وازن بين الطموح والرضا بالرزق
+- **مشاكل الشباب**: فهم تحديات الجيل الجديد مع احترام التقاليد
+
+### 5. العبارات والتعابير العمانية:
+- "إن شاء الله بيكون خير" للتشجيع
+- "الصبر مفتاح الفرج" للتهدئة
+- "الله يعطيك القوة" للدعم
+- "هذا امتحان من الله" للابتلاءات
+- "اطلب المساعدة عادي، مافي عيب" لتشجيع طلب المساعدة
+
+### 6. بروتوكول الأزمات:
+إذا ذكر المستخدم أفكار إيذاء النفس أو الانتحار:
+- تعامل بجدية تامة وتعاطف
+- ذكره بحرمة إيذاء النفس في الإسلام
+- شجعه على طلب المساعدة الفورية
+- اعطه أرقام الطوارئ العمانية
+- ذكره بأن الله يحبه وأن حياته لها معنى وقيمة
+
+### 7. حدود المساعدة:
+- أنت مساعد ذكي وليس بديل عن الطبيب النفسي المتخصص
+- شجع على زيارة المختصين عند الحاجة
+- لا تعطي تشخيصات طبية أو وصفات دوائية
+- احترم خصوصية المستخدم ولا تحفظ معلومات شخصية
+
+كن دائماً متعاطف، مهني، ومحترم للثقافة العمانية والإسلامية."""
+
+        self.system_prompt_english = """You are a specialized and understanding Omani therapist, working as a mental health assistant while preserving Omani and Islamic culture. You always respond in English, using culturally sensitive language that respects family, faith, and Omani traditions.
+
+## Core Principles:
+
+### 1. Cultural and Religious Identity:
+- Respect Islamic values and Omani traditions
+- Consider the importance of family and community in mental healing
+- Use Islamic concepts like patience (sabr), trust in God (tawakkul), and acceptance of fate (ridha bil qada wal qadar)
+- Remember that seeking mental help is a strength, not weakness in Islam
+
+### 2. Integrated Therapeutic Approach:
+- **Cognitive Behavioral Therapy (CBT)**: Adapted for Omani culture
+- **Islamic Therapy**: Use appropriate verses and hadiths for psychological comfort
+- **Family Therapy**: Consider the family's role in support and healing
+- **Meditation and Dhikr**: Encourage prayer and remembrance as means of mental peace
+
+### 3. Cultural Sensitivity:
+- **Family Honor**: Handle issues that may affect family reputation with care
+- **Social Roles**: Respect traditional roles of men and women
+- **Privacy**: Respect the need for confidentiality in sensitive topics
+- **Indirect Communication**: Use polite and indirect approach when needed
+
+### 4. Dealing with Common Issues:
+- **Anxiety and Stress**: Connect them to trust in God and patience
+- **Depression**: Use the concept of trials (ibtila) and reward from God
+- **Family Problems**: Encourage dialogue, understanding, and mutual respect
+- **Work Pressure**: Balance between ambition and contentment with provisions
+- **Youth Issues**: Understand new generation challenges while respecting traditions
+
+### 5. Supportive Phrases:
+- "God willing, it will be good" for encouragement
+- "Patience is the key to relief" for calming
+- "May God give you strength" for support
+- "This is a test from God" for trials
+- "Seeking help is normal, there's no shame" to encourage seeking help
+
+### 6. Crisis Protocol:
+If the user mentions self-harm or suicidal thoughts:
+- Deal with complete seriousness and empathy
+- Remind them that harming oneself is forbidden in Islam
+- Encourage seeking immediate help
+- Provide Omani emergency numbers
+- Remind them that God loves them and their life has meaning and value
+
+### 7. Limits of Assistance:
+- You are an AI assistant, not a replacement for a specialized therapist
+- Encourage visiting specialists when needed
+- Don't provide medical diagnoses or prescriptions
+- Respect user privacy and don't store personal information
+
+Always be empathetic, professional, and respectful of Omani and Islamic culture."""
+
+        # Default system prompt (Arabic)
+        self.system_prompt = self.system_prompt_arabic
         
         # Add system message to memory
         self.session_memory.append(ConversationMessage(
@@ -193,10 +291,16 @@ class OmaniTherapistAI:
             timestamp=datetime.now()
         ))
         
-        # Available voices
+        # Available voices for both languages
         self.voices = {
+            'ar': {
             'male': 'ar-OM-AbdullahNeural',
             'female': 'ar-OM-AyshaNeural'
+            },
+            'en': {
+                'male': 'en-US-BrianNeural',
+                'female': 'en-US-JennyNeural'
+            }
         }
         
         # Default settings
@@ -204,6 +308,40 @@ class OmaniTherapistAI:
         self.default_emotion = "neutral"
         
         logger.info("Omani Therapist AI initialized successfully")
+    
+    def detect_language(self, text: str) -> str:
+        """
+        Detect if the input text is primarily in English or Arabic
+        
+        Args:
+            text: Input text to analyze
+            
+        Returns:
+            'en' for English, 'ar' for Arabic (default)
+        """
+        if not text or not text.strip():
+            return 'ar'  # Default to Arabic
+        
+        # Count Arabic characters (including Arabic numerals)
+        arabic_chars = len(re.findall(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]', text))
+        
+        # Count English characters (Latin alphabet)
+        english_chars = len(re.findall(r'[a-zA-Z]', text))
+        
+        # Count total meaningful characters (excluding spaces and punctuation)
+        total_chars = arabic_chars + english_chars
+        
+        # If no meaningful characters, default to Arabic
+        if total_chars == 0:
+            return 'ar'
+        
+        # If more than 60% English characters, consider it English
+        english_ratio = english_chars / total_chars
+        if english_ratio > 0.6:
+            return 'en'
+        
+        # Otherwise, default to Arabic
+        return 'ar'
     
     def _setup_azure_speech(self):
         """Setup Azure Speech Services for STT and TTS"""
@@ -437,10 +575,10 @@ class OmaniTherapistAI:
             typed_user_messages = cast(List[anthropic.types.MessageParam], user_messages)
 
             response = self.claude_client.messages.create(
-                model="claude-3-sonnet-20240229",
+                model="claude-4-opus-20250520",  # Updated to Claude Opus 4
                 system=system_prompt,
                 messages=typed_user_messages,
-                max_tokens=300,
+                max_tokens=500,  # Increased for better responses
                 temperature=0.7
             )
             
@@ -456,7 +594,7 @@ class OmaniTherapistAI:
             
         return None
 
-    def get_ai_response(self, user_input: str, timing_metrics: TimingMetrics) -> Optional[str]:
+    def get_ai_response(self, user_input: str, timing_metrics: TimingMetrics) -> Tuple[Optional[str], str]:
         """
         Get AI response with OpenAI primary and Claude fallback
         
@@ -465,10 +603,26 @@ class OmaniTherapistAI:
             timing_metrics: Timing metrics object to update
             
         Returns:
-            AI response or None if all services failed
+            Tuple of (AI response or None if all services failed, detected language)
         """
         # Record AI processing start time
         timing_metrics.ai_processing_start_time = time.time()
+        
+        # Detect language of user input
+        detected_language = self.detect_language(user_input)
+        logger.info(f"Detected language: {detected_language} for input: {user_input[:50]}...")
+        
+        # Set appropriate system prompt based on detected language
+        if detected_language == 'en':
+            self.system_prompt = self.system_prompt_english
+            logger.info("Using English system prompt")
+        else:
+            self.system_prompt = self.system_prompt_arabic
+            logger.info("Using Arabic system prompt")
+        
+        # Update system message in session memory if language changed
+        if self.session_memory and self.session_memory[0].role == "system":
+            self.session_memory[0].content = self.system_prompt
         
         # Add user message to session memory
         self.session_memory.append(ConversationMessage(
@@ -501,13 +655,13 @@ class OmaniTherapistAI:
                 emotion=self.default_emotion
             ))
         
-        return ai_response
+        return ai_response, detected_language
     
     def _create_ssml_text(self, text: str, emotion: str = "neutral", 
-                         voice_name: Optional[str] = None) -> str:
+                         voice_name: Optional[str] = None, language: str = "ar") -> str:
         """Create SSML formatted text with emotional control"""
         if not voice_name:
-            voice_name = self.voices[self.default_voice_gender]
+            voice_name = self.voices[language][self.default_voice_gender]
         
         # Emotion-specific prosody settings
         emotion_settings = {
@@ -520,8 +674,11 @@ class OmaniTherapistAI:
         
         settings = emotion_settings.get(emotion, emotion_settings['neutral'])
         
+        # Set appropriate xml:lang based on language parameter
+        xml_lang = "ar-OM" if language == "ar" else "en-US"
+        
         ssml = f"""
-        <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="ar-OM">
+        <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="{xml_lang}">
             <voice name="{voice_name}">
                 <prosody rate="{settings['rate']}" pitch="{settings['pitch']}" volume="medium">
                     <emphasis level="moderate">{text}</emphasis>
@@ -533,13 +690,14 @@ class OmaniTherapistAI:
         return ssml.strip()
     
     def speak_text(self, text: str, voice_gender: str = "female", 
-                   emotion: str = "neutral", timing_metrics: Optional[TimingMetrics] = None, return_bytes: bool = False):
+                   emotion: str = "neutral", timing_metrics: Optional[TimingMetrics] = None, 
+                   return_bytes: bool = False, language: str = "ar"):
         try:
             if timing_metrics:
                 timing_metrics.tts_start_time = time.time()
-            voice_name = self.voices.get(voice_gender, self.voices['female'])
+            voice_name = self.voices[language].get(voice_gender, self.voices[language]['female'])
             self.tts_config.speech_synthesis_voice_name = voice_name
-            ssml_text = self._create_ssml_text(text, emotion, voice_name)
+            ssml_text = self._create_ssml_text(text, emotion, voice_name, language)
             synthesizer = speechsdk.SpeechSynthesizer(
                 speech_config=self.tts_config,
                 audio_config=None
@@ -741,11 +899,11 @@ class OmaniTherapistAI:
                     continue
                 
                 # Get AI response with timing
-                ai_response = self.get_ai_response(user_input, timing_metrics)
+                ai_response, detected_language = self.get_ai_response(user_input, timing_metrics)
                 
                 if ai_response:
                     # Speak the response with timing
-                    success = self.speak_text(ai_response, self.default_voice_gender, self.default_emotion, timing_metrics)
+                    success = self.speak_text(ai_response, self.default_voice_gender, self.default_emotion, timing_metrics, language=detected_language)
                     
                     if success:
                         conversation_count += 1

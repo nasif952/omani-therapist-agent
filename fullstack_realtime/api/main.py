@@ -4,13 +4,14 @@ import tempfile
 import re
 import time
 import logging
-from typing import Optional
+from typing import Optional, List
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import requests
 from dotenv import load_dotenv
 from omani_therapist_ai import OmaniTherapistAI, TimingMetrics
+from voice_activity_detector import VoiceActivityDetector, VADConfig, SpeechSegment
 from pydub import AudioSegment
 import asyncio
 import azure.cognitiveservices.speech as speechsdk
@@ -41,12 +42,39 @@ except Exception as e:
     print(f"❌ Failed to initialize AI system: {e}")
     therapist_ai = None
 
-# Crisis detection patterns (expandable)
+# Enhanced crisis detection patterns with comprehensive Arabic and English keywords
 CRISIS_PATTERNS = [
-    r'\b(suicide|انتحار|اقتل نفسي|أريد أن أموت)\b',
-    r'\b(hurt myself|أؤذي نفسي|أضر نفسي)\b',
-    r'\b(end it all|أنهي كل شيء|لا أستطيع المتابعة)\b',
-    r'\b(help me|ساعدني|أحتاج مساعدة عاجلة)\b'
+    # Suicide-related keywords
+    r'\b(suicide|انتحار|اقتل نفسي|أريد أن أموت|أريد الموت|أفكر في الانتحار|أقتل روحي|أنهي حياتي)\b',
+    r'\b(kill myself|end my life|take my own life|أخلص من الحياة|أتخلص من نفسي|أموت أحسن)\b',
+    
+    # Self-harm keywords
+    r'\b(hurt myself|أؤذي نفسي|أضر نفسي|أجرح نفسي|أعذب نفسي|أقطع نفسي|أحرق نفسي)\b',
+    r'\b(cut myself|burn myself|harm myself|أضرب نفسي|أعاقب نفسي|أدمر نفسي)\b',
+    
+    # Hopelessness and despair
+    r'\b(end it all|أنهي كل شيء|لا أستطيع المتابعة|مافي أمل|مافي فايدة|تعبت من الحياة)\b',
+    r'\b(no hope|hopeless|give up|أستسلم|ما عاد أقدر|خلاص انتهيت|مافي معنى للحياة)\b',
+    r'\b(can\'t go on|can\'t take it|أبي أموت|أبي أخلص|تعبت من كل شي|ما عاد أتحمل)\b',
+    
+    # Immediate help requests
+    r'\b(help me|ساعدني|أحتاج مساعدة عاجلة|أحتاج مساعدة فورية|أنقذوني|أدعموني)\b',
+    r'\b(save me|rescue me|أنقذني|أحتاج أحد|أبي أحد يساعدني|أحتاج دعم نفسي)\b',
+    
+    # Crisis expressions in Omani dialect
+    r'\b(ما عاد أقدر|خلاص تعبت|أبي أموت|أبي أخلص|تعبت من الدنيا|مافي فايدة مني)\b',
+    r'\b(أحس أني عبء|أحس أني مافي داعي لوجودي|الناس أحسن بدوني|أنا مشكلة على الكل)\b',
+    
+    # Mental health crisis terms
+    r'\b(mental breakdown|nervous breakdown|انهيار نفسي|انهيار عصبي|أنهار نفسياً)\b',
+    r'\b(losing my mind|going crazy|أفقد عقلي|أصير مجنون|أحس أني أجن|عقلي راح)\b',
+    
+    # Substance abuse crisis
+    r'\b(overdose|جرعة زائدة|أبي أخذ حبوب كثير|أشرب دوا كثير|أبي أسكر وأموت)\b',
+    
+    # Family/relationship crisis
+    r'\b(أبي أهرب من البيت|أبي أترك كل شي|مافي أحد يحبني|كلهم يكرهونني)\b',
+    r'\b(أحس أني وحيد|مافي أحد يفهمني|أحس أني منبوذ|أحس أني مرفوض)\b'
 ]
 
 def detect_crisis(text: str) -> bool:
@@ -58,15 +86,35 @@ def detect_crisis(text: str) -> bool:
     return False
 
 def enhance_ai_prompt_for_crisis(user_text: str, is_crisis: bool) -> str:
-    """Enhance AI prompt based on crisis detection (expandable)"""
+    """Enhanced AI prompt based on crisis detection with cultural sensitivity"""
     if is_crisis:
         crisis_guidance = """
-        IMPORTANT: The user may be in distress. Please:
-        1. Show empathy and validate their feelings
-        2. Encourage them to seek professional help immediately
-        3. Provide local crisis helpline information if available
-        4. Avoid giving medical advice
-        5. Be supportive but direct them to qualified professionals
+        CRITICAL CRISIS RESPONSE PROTOCOL:
+        
+        The user has expressed thoughts or feelings that indicate they may be in serious psychological distress or crisis. 
+        
+        IMMEDIATE ACTIONS REQUIRED:
+        1. **Validate and Empathize**: Acknowledge their pain without minimizing it
+        2. **Cultural Sensitivity**: Respond in culturally appropriate Omani Arabic
+        3. **Immediate Safety**: Ask if they are safe right now
+        4. **Professional Help**: Strongly encourage immediate professional support
+        5. **Local Resources**: Provide Omani crisis contacts:
+           - Emergency: 999
+           - Mental Health Support: Ministry of Health Psychological Support +968 24601999
+           - Crisis Helpline: +968 80077000
+        
+        THERAPEUTIC APPROACH:
+        - Use Islamic principles of hope and divine mercy ("رحمة الله واسعة")
+        - Emphasize that seeking help is strength, not weakness
+        - Remind them they are valued and their life has meaning
+        - Avoid any statements that might increase guilt or shame
+        
+        SAFETY REMINDERS:
+        - This is an AI, not a replacement for professional help
+        - Encourage them to reach out to trusted family/friends
+        - If immediate danger, suggest going to nearest hospital
+        
+        Respond with deep empathy, cultural understanding, and urgent care while maintaining professional boundaries.
         """
         return f"{crisis_guidance}\n\nUser message: {user_text}"
     return user_text
@@ -141,7 +189,14 @@ async def process_audio(file: UploadFile = File(...)):
         enhanced_text = enhance_ai_prompt_for_crisis(user_text, is_crisis)
         
         # AI: Generate response
-        ai_response = therapist_ai.get_ai_response(enhanced_text, timing)
+        result = therapist_ai.get_ai_response(enhanced_text, timing)
+        if result is None:
+            return JSONResponse(
+                status_code=200,
+                content={"error": "AI failed to generate response. Please try again."}
+            )
+        
+        ai_response, detected_language = result
         
         if not ai_response:
             return JSONResponse(
@@ -150,7 +205,7 @@ async def process_audio(file: UploadFile = File(...)):
             )
         
         # TTS: Convert response to speech
-        tts_audio = therapist_ai.speak_text(ai_response, return_bytes=True)
+        tts_audio = therapist_ai.speak_text(ai_response, return_bytes=True, language=detected_language)
         
         if not isinstance(tts_audio, (bytes, bytearray)):
             return JSONResponse(
@@ -203,7 +258,14 @@ async def process_text(text: str = Form(...)):
         enhanced_text = enhance_ai_prompt_for_crisis(text, is_crisis)
         
         # AI: Generate response
-        ai_response = therapist_ai.get_ai_response(enhanced_text, timing)
+        result = therapist_ai.get_ai_response(enhanced_text, timing)
+        if result is None:
+            return JSONResponse(
+                status_code=200,
+                content={"error": "AI failed to generate response. Please try again."}
+            )
+        
+        ai_response, detected_language = result
         
         if not ai_response:
             return JSONResponse(
@@ -212,7 +274,7 @@ async def process_text(text: str = Form(...)):
             )
         
         # TTS: Convert response to speech
-        tts_audio = therapist_ai.speak_text(ai_response, return_bytes=True)
+        tts_audio = therapist_ai.speak_text(ai_response, return_bytes=True, language=detected_language)
         
         if not isinstance(tts_audio, (bytes, bytearray)):
             return JSONResponse(
@@ -283,6 +345,26 @@ async def reset_session():
             content={"error": f"Session reset failed: {str(e)}"}
         )
 
+@app.get("/api/vad/config")
+async def get_vad_config():
+    """Get current VAD configuration"""
+    return {
+        "default_config": {
+            "silence_timeout": 3.0,
+            "min_speech_duration": 0.5,
+            "max_turn_duration": 60.0,
+            "word_pause_threshold": 1.0,
+            "debug_logging": True
+        },
+        "description": {
+            "silence_timeout": "Seconds to wait after speech ends before processing turn",
+            "min_speech_duration": "Minimum speech duration to consider valid turn",
+            "max_turn_duration": "Maximum turn duration before forcing processing",
+            "word_pause_threshold": "Minimum silence between words (not used currently)",
+            "debug_logging": "Enable detailed logging for VAD events"
+        }
+    }
+
 @app.websocket("/ws/audio")
 async def websocket_audio_stream(websocket: WebSocket):
     await websocket.accept()
@@ -307,35 +389,121 @@ async def websocket_audio_stream(websocket: WebSocket):
     # Use the main therapist_ai instance for AI and TTS
     global therapist_ai
 
-    # State to store the last final transcript
-    last_final_transcript = None
+    # Initialize Voice Activity Detection system
+    vad_config = VADConfig(
+        silence_timeout=3.0,  # Wait 3 seconds after speech ends
+        min_speech_duration=0.5,  # Ignore very short utterances
+        max_turn_duration=60.0,  # Force processing after 60 seconds
+        debug_logging=True
+    )
+    vad = VoiceActivityDetector(vad_config)
+
+    # Callback for when a complete turn is detected
+    async def on_turn_complete(complete_text: str, speech_segments: List[SpeechSegment]):
+        logger.info(f"🎯 Processing complete turn: '{complete_text}'")
+        
+        if therapist_ai is None:
+            logger.error("AI system not initialized")
+            return
+        
+        # Send turn complete notification
+        await websocket.send_json({
+            "type": "turn_complete",
+            "text": complete_text,
+            "duration": sum(seg.end_time - seg.start_time for seg in speech_segments)
+        })
+        
+        # Process with AI
+        logger.info("Calling AI for response...")
+        result = therapist_ai.get_ai_response(complete_text, TimingMetrics(
+            speech_start_time=0, speech_end_time=0, ai_processing_start_time=0, ai_processing_end_time=0,
+            tts_start_time=0, tts_end_time=0, voice_playback_start_time=0
+        ))
+        
+        if result is None:
+            logger.error("AI failed to generate response")
+            await websocket.send_json({
+                "type": "error",
+                "text": "AI failed to generate response. Please try again."
+            })
+            return
+        
+        ai_response, detected_language = result
+        logger.info(f"AI response received: {ai_response}")
+        logger.info(f"Detected language for TTS: {detected_language}")
+        
+        # Send AI response
+        await websocket.send_json({"type": "ai_response", "text": ai_response})
+        
+        if ai_response:
+            logger.info("Starting TTS streaming...")
+            await websocket.send_json({"type": "tts_start"})
+            
+            # Generate TTS audio with detected language
+            tts_audio_bytes = therapist_ai.speak_text(ai_response, return_bytes=True, language=detected_language)
+            
+            if tts_audio_bytes and isinstance(tts_audio_bytes, bytes):
+                logger.info(f"TTS audio generated, size: {len(tts_audio_bytes)} bytes")
+                
+                # Stream the audio in chunks
+                chunk_size = 4096
+                chunk_count = 0
+                total_bytes = 0
+                
+                for i in range(0, len(tts_audio_bytes), chunk_size):
+                    chunk = tts_audio_bytes[i:i + chunk_size]
+                    chunk_count += 1
+                    total_bytes += len(chunk)
+                    logger.info(f"Sending TTS audio chunk #{chunk_count}, size {len(chunk)} bytes, total so far: {total_bytes}")
+                    chunk_b64 = base64.b64encode(chunk).decode('utf-8')
+                    await websocket.send_json({"type": "tts_audio", "chunk": chunk_b64})
+                
+                logger.info(f"TTS streaming complete: {chunk_count} chunks, {total_bytes} total bytes")
+            else:
+                logger.error(f"TTS audio generation failed: {type(tts_audio_bytes)}")
+            
+            await websocket.send_json({"type": "tts_end"})
+            logger.info("TTS streaming finished")
+
+    # Set the callback for VAD
+    vad.set_turn_complete_callback(on_turn_complete)
 
     async def recognize_loop():
         loop = asyncio.get_event_loop()
-        # Remove the done event and its usage
 
         def recognized(evt):
             logger.info(f"Recognizer event: {evt.result.reason}, text: '{evt.result.text}'")
-            nonlocal last_final_transcript
             if evt.result.reason == speechsdk.ResultReason.RecognizingSpeech:
+                # Partial transcript - send for real-time feedback
                 logger.info(f"Partial transcript: '{evt.result.text}'")
                 asyncio.run_coroutine_threadsafe(
                     websocket.send_json({
                         "type": "partial_transcript",
                         "text": evt.result.text
                     }), loop)
-            elif evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
-                last_final_transcript = evt.result.text
-                logger.info(f"Final transcript: '{evt.result.text}'")
+                
+                # Add to VAD as partial segment
                 asyncio.run_coroutine_threadsafe(
-                    websocket.send_json({
-                        "type": "final_transcript",
-                        "text": evt.result.text
-                    }), loop)
-                # Do NOT set or wait for a done event
+                    vad.add_speech_segment(evt.result.text, is_final=False), loop)
+                
+            elif evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
+                # Final transcript - add to VAD for turn processing
+                if evt.result.text.strip():
+                    logger.info(f"Final transcript: '{evt.result.text}'")
+                    asyncio.run_coroutine_threadsafe(
+                        websocket.send_json({
+                            "type": "final_transcript",
+                            "text": evt.result.text
+                        }), loop)
+                else:
+                    logger.debug(f"Empty final transcript received (silence)")
+                
+                # Add to VAD as final segment (VAD will handle empty text)
+                asyncio.run_coroutine_threadsafe(
+                    vad.add_speech_segment(evt.result.text, is_final=True), loop)
 
         def recognizing(evt):
-            logger.info(f"Recognizing event: '{evt.result.text}'")
+            logger.debug(f"Recognizing event: '{evt.result.text}'")
 
         def canceled(evt):
             logger.error(f"Recognizer canceled: {evt.reason}, details: {evt}")
@@ -344,7 +512,6 @@ async def websocket_audio_stream(websocket: WebSocket):
                     "type": "error",
                     "text": f"Recognition canceled: {evt.reason}"
                 }), loop)
-            # Do NOT set or wait for a done event
 
         recognizer.recognizing.connect(recognizing)
         recognizer.recognized.connect(recognized)
@@ -352,60 +519,47 @@ async def websocket_audio_stream(websocket: WebSocket):
 
         logger.info("Starting continuous recognition...")
         recognizer.start_continuous_recognition()
-        # Do NOT await done.wait() or stop recognition here
-        # Let the recognizer run until the websocket disconnects
 
     recog_task = asyncio.create_task(recognize_loop())
 
     try:
         while True:
-            data = await websocket.receive_bytes()
-            # logger.info(f"Received audio chunk of size {len(data)} bytes")
-            stream.write(data)
-            # logger.info("Wrote audio chunk to Azure stream")
-            if last_final_transcript:
-                logger.info(f"Final transcript detected: {last_final_transcript}")
-                if therapist_ai is None:
-                    logger.error("AI system not initialized")
-                    last_final_transcript = None
-                    continue
-                logger.info("Calling AI for response...")
-                ai_response = therapist_ai.get_ai_response(last_final_transcript, TimingMetrics(
-                    speech_start_time=0, speech_end_time=0, ai_processing_start_time=0, ai_processing_end_time=0,
-                    tts_start_time=0, tts_end_time=0, voice_playback_start_time=0
-                ))
-                logger.info(f"AI response received: {ai_response}")
-                await websocket.send_json({"type": "ai_response", "text": ai_response})
-                if ai_response:
-                    logger.info("Starting TTS streaming...")
-                    await websocket.send_json({"type": "tts_start"})
-                    
-                    # Use the therapist_ai instance to generate TTS audio
-                    tts_audio_bytes = therapist_ai.speak_text(ai_response, return_bytes=True)
-                    
-                    if tts_audio_bytes and isinstance(tts_audio_bytes, bytes):
-                        logger.info(f"TTS audio generated, size: {len(tts_audio_bytes)} bytes")
-                        
-                        # Stream the audio in chunks
-                        chunk_size = 4096
-                        chunk_count = 0
-                        total_bytes = 0
-                        
-                        for i in range(0, len(tts_audio_bytes), chunk_size):
-                            chunk = tts_audio_bytes[i:i + chunk_size]
-                            chunk_count += 1
-                            total_bytes += len(chunk)
-                            logger.info(f"Sending TTS audio chunk #{chunk_count}, size {len(chunk)} bytes, total so far: {total_bytes}")
-                            chunk_b64 = base64.b64encode(chunk).decode('utf-8')
-                            await websocket.send_json({"type": "tts_audio", "chunk": chunk_b64})
-                        
-                        logger.info(f"TTS streaming complete: {chunk_count} chunks, {total_bytes} total bytes")
-                    else:
-                        logger.error(f"TTS audio generation failed: {type(tts_audio_bytes)}")
-                    
-                    await websocket.send_json({"type": "tts_end"})
-                    logger.info("TTS streaming finished")
-                last_final_transcript = None
+            try:
+                # Handle different message types
+                message = await websocket.receive()
+                
+                if message["type"] == "websocket.receive":
+                    if "bytes" in message:
+                        # Audio data
+                        data = message["bytes"]
+                        stream.write(data)
+                    elif "text" in message:
+                        # Text commands (e.g., force turn completion)
+                        import json
+                        try:
+                            cmd = json.loads(message["text"])
+                            if cmd.get("type") == "force_complete_turn":
+                                logger.info("🔄 Force completing current turn")
+                                await vad.force_complete_turn()
+                            elif cmd.get("type") == "get_vad_stats":
+                                stats = vad.get_statistics()
+                                await websocket.send_json({
+                                    "type": "vad_stats",
+                                    "stats": stats
+                                })
+                            elif cmd.get("type") == "update_vad_config":
+                                vad.update_config(**cmd.get("config", {}))
+                                await websocket.send_json({
+                                    "type": "vad_config_updated",
+                                    "config": cmd.get("config", {})
+                                })
+                        except json.JSONDecodeError:
+                            logger.warning(f"Invalid JSON command: {message['text']}")
+                            
+            except Exception as e:
+                logger.error(f"Error processing WebSocket message: {e}")
+                break
+                
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
         stream.close()
