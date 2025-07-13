@@ -11,11 +11,13 @@
 - Branches: `fullstack_v2`, `v3_realtime_audio`
 - Basic Omani Arabic TTS and STT integration
 - OpenAI GPT-4o integration for AI responses
+- **Dual-Model Strategy: Claude Opus 4 is already implemented as fallback to GPT-4o**
 
 ## 🛠️ How & Method
 - WebSocket for low-latency audio streaming
 - Azure Speech Services for STT and TTS
 - OpenAI GPT-4o for AI responses
+- Claude Opus 4 fallback for AI responses
 - React (frontend), FastAPI (backend)
 - State management with React hooks/refs
 - Logging at every step for traceability
@@ -29,7 +31,7 @@
 ## 🚧 What Is Remaining (Prioritized by Technical Assessment)
 
 ### 🔴 HIGH PRIORITY - Core Technical Requirements
-- **Dual-Model Strategy**: Implement Claude Opus 4 as fallback/validation to GPT-4o
+- **Dual-Model Evaluation & Reporting**: Validate, compare, and document the dual-model approach (OpenAI + Claude)
 - **Intent Analysis & Emotional Detection**: Add emotional state detection and therapeutic context understanding
 - **Cultural Adaptation**: Enhance Gulf-specific mental health terminology and cultural sensitivity
 - **Performance Optimization**: Ensure <20 seconds end-to-end latency per conversation turn
@@ -56,11 +58,11 @@
 
 ## 📝 How Can Be Done
 
-### Dual-Model Strategy
-- Implement Claude Opus 4 API integration
-- Add fallback logic: if GPT-4o fails, use Claude
-- Add validation: cross-check responses between models
-- Performance comparison and logging
+### Dual-Model Evaluation & Reporting
+- Collect logs and results from both OpenAI and Claude responses
+- Compare response quality, latency, and fallback frequency
+- Write a model evaluation report (see Technical Assessment deliverables)
+- Document the dual-model approach in architecture docs
 
 ### Intent Analysis & Emotional Detection
 - Use Azure Cognitive Services for emotion detection
