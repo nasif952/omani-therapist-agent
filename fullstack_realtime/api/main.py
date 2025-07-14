@@ -204,8 +204,11 @@ async def process_audio(file: UploadFile = File(...)):
                 content={"error": "AI failed to generate response. Please try again."}
             )
         
-        # TTS: Convert response to speech
-        tts_audio = therapist_ai.speak_text(ai_response, return_bytes=True, language=detected_language)
+        # Detect emotion from AI response for natural TTS
+        detected_emotion = therapist_ai.detect_emotion_from_text(ai_response)
+        
+        # TTS: Convert response to speech with detected emotion
+        tts_audio = therapist_ai.speak_text(ai_response, emotion=detected_emotion, return_bytes=True, language=detected_language)
         
         if not isinstance(tts_audio, (bytes, bytearray)):
             return JSONResponse(
@@ -221,6 +224,7 @@ async def process_audio(file: UploadFile = File(...)):
             "ai_response": ai_response,
             "tts_audio_base64": audio_b64,
             "is_crisis_detected": is_crisis,
+            "detected_emotion": detected_emotion,
             "timing": timing.__dict__ if timing else None,
             "timestamp": time.time()
         }
@@ -273,8 +277,11 @@ async def process_text(text: str = Form(...)):
                 content={"error": "AI failed to generate response. Please try again."}
             )
         
-        # TTS: Convert response to speech
-        tts_audio = therapist_ai.speak_text(ai_response, return_bytes=True, language=detected_language)
+        # Detect emotion from AI response for natural TTS
+        detected_emotion = therapist_ai.detect_emotion_from_text(ai_response)
+        
+        # TTS: Convert response to speech with detected emotion
+        tts_audio = therapist_ai.speak_text(ai_response, emotion=detected_emotion, return_bytes=True, language=detected_language)
         
         if not isinstance(tts_audio, (bytes, bytearray)):
             return JSONResponse(
@@ -289,6 +296,7 @@ async def process_text(text: str = Form(...)):
             "user_text": text,
             "ai_response": ai_response,
             "tts_audio_base64": audio_b64,
+            "detected_emotion": detected_emotion,
             "is_crisis_detected": is_crisis,
             "timing": timing.__dict__,
             "timestamp": time.time()
@@ -439,8 +447,11 @@ async def websocket_audio_stream(websocket: WebSocket):
             logger.info("Starting TTS streaming...")
             await websocket.send_json({"type": "tts_start"})
             
-            # Generate TTS audio with detected language
-            tts_audio_bytes = therapist_ai.speak_text(ai_response, return_bytes=True, language=detected_language)
+            # Detect emotion from AI response for natural TTS
+            detected_emotion = therapist_ai.detect_emotion_from_text(ai_response)
+            
+            # Generate TTS audio with detected language and emotion
+            tts_audio_bytes = therapist_ai.speak_text(ai_response, emotion=detected_emotion, return_bytes=True, language=detected_language)
             
             if tts_audio_bytes and isinstance(tts_audio_bytes, bytes):
                 logger.info(f"TTS audio generated, size: {len(tts_audio_bytes)} bytes")

@@ -124,7 +124,7 @@ class OmaniTherapistAI:
     
     def __init__(self):
         """Initialize the Omani Therapist AI system"""
-        # Load API keys from environment
+        # Load API keys from environment ##############################################################################################################################
         self.azure_speech_key = os.getenv('AZURE_SPEECH_KEY')
         self.azure_region = os.getenv('AZURE_SPEECH_REGION', 'uaenorth')
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
@@ -175,10 +175,10 @@ class OmaniTherapistAI:
         # Timing metrics storage
         self.timing_history: List[TimingMetrics] = []
         
-        # Enhanced therapeutic system prompts with detailed cultural guidelines
+        # Enhanced therapeutic system prompts with detailed cultural guidelines ###############################################################
         self.system_prompt_arabic = """أنت دكتور نفسي عماني متخصص ومتفهم، تعمل كمساعد للعلاج النفسي مع الحفاظ على الثقافة العمانية والإسلامية. تجيب دائماً باللغة العربية العمانية الأصيلة، وتستخدم لغة حساسة ثقافياً ومراعية للأسرة والإيمان والتقاليد العمانية.
 
-## المبادئ الأساسية:
+## المبادئ الأساسية: 
 
 ### 1. الهوية الثقافية والدينية:
 - استخدم اللهجة العمانية الأصيلة والتعابير المحلية
@@ -228,6 +228,8 @@ class OmaniTherapistAI:
 - احترم خصوصية المستخدم ولا تحفظ معلومات شخصية
 
 كن دائماً متعاطف، مهني، ومحترم للثقافة العمانية والإسلامية."""
+
+###############################################################
 
         self.system_prompt_english = """You are a specialized and understanding Omani therapist, working as a mental health assistant while preserving Omani and Islamic culture. You always respond in English, using culturally sensitive language that respects family, faith, and Omani traditions.
 
@@ -294,12 +296,12 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
         # Available voices for both languages
         self.voices = {
             'ar': {
-            'male': 'ar-OM-AbdullahNeural',
-            'female': 'ar-OM-AyshaNeural'
+            'male': 'ar-OM-AbdullahNeural',  ###############################################################
+            'female': 'ar-OM-AyshaNeural' ###############################################################
             },
             'en': {
-                'male': 'en-US-BrianNeural',
-                'female': 'en-US-JennyNeural'
+                'male': 'en-US-BrianNeural', ###############################################################
+                'female': 'en-US-JennyNeural' ###############################################################
             }
         }
         
@@ -335,13 +337,85 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
         if total_chars == 0:
             return 'ar'
         
-        # If more than 60% English characters, consider it English
+        # If more than 60% English characters, consider it English  ###############################################################
         english_ratio = english_chars / total_chars
         if english_ratio > 0.6:
             return 'en'
         
         # Otherwise, default to Arabic
         return 'ar'
+    
+    def detect_emotion_from_text(self, text: str) -> str:
+        """
+        Detect appropriate emotion for TTS based on the content of AI response
+        
+        Args:
+            text: AI response text to analyze
+            
+        Returns:
+            Detected emotion: 'calm', 'encouraging', 'excited', 'sad', 'neutral'
+        """
+        if not text or not text.strip():
+            return 'neutral'
+        
+        text_lower = text.lower()
+        
+        # Arabic and English patterns for different emotions
+        emotion_patterns = {
+            'encouraging': [
+                # Arabic encouraging patterns
+                r'\b(تستطيع|قادر|قوي|ممتاز|رائع|أحسنت|موفق|إن شاء الله بيكون خير|تقدر)\b',
+                r'\b(لا تخاف|لا تقلق|أنت بخير|راح يكون أحسن|استمر|امشي قدام)\b',
+                r'\b(أنت قوي|عندك قوة|فيك أمل|الله معاك|ثق بنفسك)\b',
+                # English encouraging patterns  
+                r'\b(you can|you\'re capable|strong|excellent|great|keep going|trust yourself)\b',
+                r'\b(don\'t worry|don\'t fear|you\'re doing well|it will get better|believe in yourself)\b',
+                r'\b(proud of you|you\'ve got this|stay positive|you\'re on the right track)\b'
+            ],
+            'excited': [
+                # Arabic excited patterns
+                r'\b(مبروك|تهانينا|ممتاز جداً|رائع جداً|أحسنت|هذا رائع|عظيم|فرحان لك)\b',
+                r'\b(ما شاء الله|الله يبارك فيك|هذا إنجاز عظيم|تطور رائع)\b',
+                # English excited patterns
+                r'\b(congratulations|amazing|fantastic|wonderful|excellent|great job|awesome)\b',
+                r'\b(so proud|incredible progress|breakthrough|outstanding|brilliant)\b',
+                r'[!]{2,}|[؟]{2,}'  # Multiple exclamation marks
+            ],
+            'sad': [
+                # Arabic sad/empathetic patterns  
+                r'\b(أتفهم ألمك|أعرف أنه صعب|هذا مؤلم|أحس بيك|أحزن لك)\b',
+                r'\b(صعب عليك|تعبان|حزين|ألم|معاناة|صبر|ابتلاء)\b',
+                r'\b(أسف لما تمر به|الله يصبرك|الله يعينك|أدعو لك)\b',
+                # English sad/empathetic patterns
+                r'\b(I understand your pain|I know it\'s hard|I\'m sorry you\'re going through|I feel for you)\b',
+                r'\b(difficult|painful|struggling|heartbroken|grieving|loss|suffering)\b',
+                r'\b(my heart goes out|sending you strength|you\'re not alone in this)\b'
+            ],
+            'calm': [
+                # Arabic calm patterns
+                r'\b(هدوء|استرخي|تنفس|سكينة|طمأنينة|اهدأ|خذ وقتك)\b',
+                r'\b(بالهدوء|بروية|ببطء|خطوة بخطوة|واحدة واحدة)\b',
+                r'\b(التأمل|الصلاة|الذكر|الاستغفار|السكينة|الطمأنينة)\b',
+                # English calm patterns  
+                r'\b(calm|relax|breathe|peaceful|serenity|take your time|slowly)\b',
+                r'\b(meditation|mindfulness|deep breath|settle|center yourself)\b',
+                r'\b(step by step|one moment at a time|gently|softly)\b'
+            ]
+        }
+        
+        # Check each emotion pattern
+        for emotion, patterns in emotion_patterns.items():
+            for pattern in patterns:
+                if re.search(pattern, text_lower, re.IGNORECASE):
+                    return emotion
+        
+        # Default emotion based on punctuation and context
+        if '!' in text or '؟' in text:
+            return 'encouraging'
+        elif '...' in text or 'سكت' in text_lower:
+            return 'calm'
+        else:
+            return 'neutral'
     
     def _setup_azure_speech(self):
         """Setup Azure Speech Services for STT and TTS"""
@@ -534,15 +608,15 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
             return None
         
         try:
-            logger.info("🤖 Calling OpenAI GPT-4o...")
+            logger.info("🤖 Calling OpenAI GPT-4o...") ###############################################################
             
             typed_messages = cast(List[ChatCompletionMessageParam], messages)
             
             response = self.openai_client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4.1-mini", ############################################################### gpt-4.1/ gpt-4.1-mini /gpt-4o
                 messages=typed_messages,
                 temperature=0.7,
-                max_tokens=200
+                max_tokens=500
             )
             
             if response.choices and response.choices[0].message:
@@ -575,7 +649,7 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
             typed_user_messages = cast(List[anthropic.types.MessageParam], user_messages)
 
             response = self.claude_client.messages.create(
-                model="claude-4-opus-20250520",  # Updated to Claude Opus 4
+                model="claude-4-opus-20250520",  # Updated to Claude Opus 4  ###############################################################
                 system=system_prompt,
                 messages=typed_user_messages,
                 max_tokens=500,  # Increased for better responses
@@ -613,10 +687,10 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
         logger.info(f"Detected language: {detected_language} for input: {user_input[:50]}...")
         
         # Set appropriate system prompt based on detected language
-        if detected_language == 'en':
+        if detected_language == 'en':  ###############################################################  english
             self.system_prompt = self.system_prompt_english
             logger.info("Using English system prompt")
-        else:
+        else:   ###############################################################  arabic
             self.system_prompt = self.system_prompt_arabic
             logger.info("Using Arabic system prompt")
         
@@ -663,13 +737,14 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
         if not voice_name:
             voice_name = self.voices[language][self.default_voice_gender]
         
-        # Emotion-specific prosody settings
+        # Emotion-specific prosody settings - optimized for natural human-like speech
+        # Based on Azure TTS best practices to avoid chipmunk/robotic effects
         emotion_settings = {
-            'calm': {'rate': 'slow', 'pitch': 'low'},
-            'encouraging': {'rate': 'medium', 'pitch': 'medium'},
-            'excited': {'rate': 'fast', 'pitch': 'high'},
-            'sad': {'rate': 'x-slow', 'pitch': 'x-low'},
-            'neutral': {'rate': 'medium', 'pitch': 'medium'}
+            'calm': {'rate': '-5%', 'pitch': '-5%', 'volume': 'soft'},
+            'encouraging': {'rate': '+10%', 'pitch': '+8%', 'volume': 'medium'},
+            'excited': {'rate': '+15%', 'pitch': '+12%', 'volume': 'medium'},  # Reduced from +35%/+25% to avoid chipmunk effect
+            'sad': {'rate': '-10%', 'pitch': '-8%', 'volume': 'soft'},  # Reduced from -20%/-15% to be less robotic
+            'neutral': {'rate': 'medium', 'pitch': 'medium', 'volume': 'medium'}
         }
         
         settings = emotion_settings.get(emotion, emotion_settings['neutral'])
@@ -677,17 +752,54 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
         # Set appropriate xml:lang based on language parameter
         xml_lang = "ar-OM" if language == "ar" else "en-US"
         
+        # Add natural pauses for better human-like speech
+        enhanced_text = self._add_natural_pauses(text, emotion)
+        
         ssml = f"""
         <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="{xml_lang}">
             <voice name="{voice_name}">
-                <prosody rate="{settings['rate']}" pitch="{settings['pitch']}" volume="medium">
-                    <emphasis level="moderate">{text}</emphasis>
+                <prosody rate="{settings['rate']}" pitch="{settings['pitch']}" volume="{settings['volume']}">
+                    <emphasis level="moderate">{enhanced_text}</emphasis>
                 </prosody>
             </voice>
         </speak>
         """
         
         return ssml.strip()
+    
+    def _add_natural_pauses(self, text: str, emotion: str) -> str:
+        """Add natural pauses and breaks to text based on emotion for more human-like speech"""
+        import re
+        
+        # Handle emotional expressions first
+        # Replace ellipsis with natural pauses
+        text = re.sub(r'\.{3,}', '<break time="800ms"/>', text)  # ...
+        text = re.sub(r'_{3,}', '<break time="600ms"/>', text)   # ___
+        
+        # Add breathing/sigh effects for emotional moments
+        text = re.sub(r'<sigh>', '<break time="400ms"/>', text)
+        text = re.sub(r'\*sigh\*', '<break time="400ms"/>', text)
+        text = re.sub(r'\(sigh\)', '<break time="400ms"/>', text)
+        
+        # Handle hesitation markers
+        text = re.sub(r'\buh+m+\b', '<break time="300ms"/>um<break time="200ms"/>', text, flags=re.IGNORECASE)
+        text = re.sub(r'\bah+\b', '<break time="250ms"/>ah<break time="150ms"/>', text, flags=re.IGNORECASE)
+        
+        # Emotion-specific pause adjustments
+        if emotion == 'excited':
+            # Quick, energetic pauses
+            text = re.sub(r'([.!?])\s+', r'\1<break time="150ms"/> ', text)
+            text = re.sub(r'(,)\s+', r'\1<break time="100ms"/> ', text)
+        elif emotion in ['calm', 'sad']:
+            # Longer, contemplative pauses
+            text = re.sub(r'([.!?])\s+', r'\1<break time="400ms"/> ', text)
+            text = re.sub(r'(,)\s+', r'\1<break time="250ms"/> ', text)
+        else:
+            # Default: moderate pauses
+            text = re.sub(r'([.!?])\s+', r'\1<break time="300ms"/> ', text)
+            text = re.sub(r'(,)\s+', r'\1<break time="150ms"/> ', text)
+        
+        return text
     
     def speak_text(self, text: str, voice_gender: str = "female", 
                    emotion: str = "neutral", timing_metrics: Optional[TimingMetrics] = None, 
