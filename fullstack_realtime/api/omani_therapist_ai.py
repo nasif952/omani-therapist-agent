@@ -12,7 +12,7 @@ This system integrates:
 - Performance timing measurements
 
 Author: AI Assistant
-Created: 2024
+Created: 2025
 """
 
 import os
@@ -47,6 +47,14 @@ except ImportError:
 
 # Audio playback
 import pygame
+
+# Advanced Emotion Refinement
+try:
+    from emotion_refiner import EmotionRefiner, EmotionContext, RefinedResponse
+except ImportError:
+    EmotionRefiner = None
+    EmotionContext = None
+    RefinedResponse = None
 
 # Environment variables
 from dotenv import load_dotenv
@@ -309,6 +317,19 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
         self.default_voice_gender = "male"
         self.default_emotion = "neutral"
         
+        # Initialize Advanced Emotion Refinement (GPT-4.1-nano)
+        self.emotion_refiner = None
+        self.use_emotion_refinement = False
+        if EmotionRefiner and self.openai_api_key:
+            try:
+                self.emotion_refiner = EmotionRefiner(self.openai_api_key)
+                self.use_emotion_refinement = True
+                logger.info("✨ Advanced Emotion Refinement enabled (GPT-4.1-nano)")
+            except Exception as e:
+                logger.warning(f"Failed to initialize EmotionRefiner: {e}")
+        else:
+            logger.info("Advanced Emotion Refinement disabled (missing dependencies)")
+        
         logger.info("Omani Therapist AI initialized successfully")
     
     def detect_language(self, text: str) -> str:
@@ -324,6 +345,9 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
         if not text or not text.strip():
             return 'ar'  # Default to Arabic
         
+        # Clean text for analysis
+        text = text.strip().lower()
+        
         # Count Arabic characters (including Arabic numerals)
         arabic_chars = len(re.findall(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]', text))
         
@@ -337,12 +361,28 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
         if total_chars == 0:
             return 'ar'
         
-        # If more than 60% English characters, consider it English  ###############################################################
+        # Calculate English ratio
         english_ratio = english_chars / total_chars
-        if english_ratio > 0.6:
+        
+        # Debug logging
+        logger.info(f"Language detection - Arabic chars: {arabic_chars}, English chars: {english_chars}, English ratio: {english_ratio:.2f}")
+        
+        # If more than 50% English characters AND has some English content, consider it English
+        if english_ratio > 0.5 and english_chars > 3:
+            logger.info("Detected English input")
+            return 'en'
+        
+        # Check for common English words/phrases
+        english_indicators = ['hello', 'hi', 'hey', 'how are you', 'thank you', 'yes', 'no', 'can you', 'i am', 'help me']
+        text_lower = text.lower()
+        english_word_count = sum(1 for indicator in english_indicators if indicator in text_lower)
+        
+        if english_word_count >= 1 and english_ratio > 0.3:
+            logger.info("Detected English based on common words")
             return 'en'
         
         # Otherwise, default to Arabic
+        logger.info("Detected Arabic input")
         return 'ar'
     
     def detect_emotion_from_text(self, text: str) -> str:
@@ -646,7 +686,7 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
                 system_prompt = self.system_prompt # Default system prompt
                 user_messages = messages
 
-            typed_user_messages = cast(List[anthropic.types.MessageParam], user_messages)
+            typed_user_messages = cast(List[Any], user_messages)
 
             response = self.claude_client.messages.create(
                 model="claude-4-opus-20250520",  # Updated to Claude Opus 4  ###############################################################
@@ -678,7 +718,7 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
             
         Returns:
             Tuple of (AI response or None if all services failed, detected language)
-        """
+.        """
         # Record AI processing start time
         timing_metrics.ai_processing_start_time = time.time()
         
@@ -731,9 +771,140 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
         
         return ai_response, detected_language
     
+    def refine_ai_response_with_emotion(self, ai_response: str, user_input: str, detected_language: str) -> Tuple[str, str]:
+        """
+        Stage 2: Advanced emotion refinement using GPT-4.1-nano
+        Transforms raw AI response into naturally expressive, therapeutically appropriate speech
+        
+        Args:
+            ai_response: Raw AI response from Stage 1
+            user_input: Original user input for context
+            detected_language: Detected language (ar/en)
+            
+        Returns:
+            Tuple of (refined_response_text, enhanced_ssml)
+        """
+        if not self.use_emotion_refinement or not self.emotion_refiner:
+            # Fallback to basic emotion detection
+            basic_emotion = self.detect_emotion_from_text(ai_response)
+            return ai_response, self._create_ssml_text(ai_response, basic_emotion, language=detected_language)
+        
+        try:
+            # Detect user emotional state for context
+            user_emotion = self.detect_emotion_from_text(user_input)
+            
+            # Determine crisis level from conversation history
+            crisis_level = self._assess_crisis_level()
+            
+            # Determine therapeutic stage
+            therapeutic_stage = self._assess_therapeutic_stage()
+            
+            # Create emotion context for GPT-4.1-nano
+            if EmotionContext is None:
+                raise ImportError("EmotionContext not available")
+            
+            emotion_context = EmotionContext(
+                user_emotional_state=user_emotion,
+                conversation_history=self._get_recent_conversation_for_context(),
+                crisis_level=crisis_level,
+                cultural_context='omani' if detected_language == 'ar' else 'english',
+                therapeutic_stage=therapeutic_stage
+            )
+            
+            # Call GPT-4.1-nano for advanced emotion refinement
+            logger.info(f"🎨 Refining response with GPT-4.1-nano (user emotion: {user_emotion}, crisis: {crisis_level})")
+            refined_result = self.emotion_refiner.refine_emotional_response(ai_response, emotion_context)
+            
+            if refined_result.confidence_score > 0.5:
+                logger.info(f"✨ Emotion refinement successful: {len(refined_result.emotion_enhancements)} enhancements")
+                logger.info(f"🎭 Enhancements: {', '.join(refined_result.emotion_enhancements)}")
+                
+                # Always create our own SSML structure - don't use the emotion refiner's SSML directly
+                # The emotion refiner's SSML might be a complete document which would conflict with our structure
+                enhanced_ssml = self._create_ssml_text(
+                    refined_result.refined_response, user_emotion, language=detected_language
+                )
+                
+                return refined_result.refined_response, enhanced_ssml
+            else:
+                logger.warning(f"Low confidence refinement ({refined_result.confidence_score:.2f}), using original response")
+                
+        except Exception as e:
+            logger.error(f"Emotion refinement failed: {e}")
+        
+        # Fallback to basic emotion detection and SSML
+        basic_emotion = self.detect_emotion_from_text(ai_response)
+        return ai_response, self._create_ssml_text(ai_response, basic_emotion, language=detected_language)
+    
+    def _assess_crisis_level(self) -> str:
+        """Assess crisis level from recent conversation"""
+        if not self.session_memory:
+            return 'none'
+        
+        # Check last few user messages for crisis indicators
+        recent_user_messages = [msg.content for msg in self.session_memory[-6:] if msg.role == 'user']
+        crisis_keywords = {
+            'severe': ['أريد أن أموت', 'أقتل نفسي', 'suicide', 'kill myself', 'end it all'],
+            'moderate': ['لا أستطيع', 'يائس', 'مكتئب جداً', 'can\'t take it', 'hopeless', 'severely depressed'],
+            'mild': ['حزين', 'قلق', 'صعب', 'sad', 'anxious', 'difficult', 'struggling']
+        }
+        
+        text = ' '.join(recent_user_messages).lower()
+        
+        for level, keywords in crisis_keywords.items():
+            for keyword in keywords:
+                if keyword in text:
+                    return level
+        
+        return 'none'
+    
+    def _assess_therapeutic_stage(self) -> str:
+        """Assess current therapeutic stage from conversation length and content"""
+        if len(self.session_memory) <= 4:
+            return 'rapport_building'
+        elif len(self.session_memory) <= 12:
+            return 'exploration'
+        elif len(self.session_memory) <= 20:
+            return 'intervention'
+        else:
+            return 'closure'
+    
+    def _get_recent_conversation_for_context(self) -> List[Dict[str, str]]:
+        """Get recent conversation history for emotion context"""
+        recent = []
+        for msg in self.session_memory[-8:]:  # Last 8 messages for context
+            recent.append({
+                'role': msg.role,
+                'content': msg.content[:200] + '...' if len(msg.content) > 200 else msg.content,  # Truncate long messages
+                'timestamp': msg.timestamp.isoformat()
+            })
+        return recent
+    
+    def _adjust_settings_for_crisis(self, settings: Dict[str, str], crisis_level: str) -> Dict[str, str]:
+        """Adjust TTS settings based on crisis level for more appropriate therapeutic tone"""
+        # Create a copy to avoid modifying the original
+        adjusted_settings = settings.copy()
+        
+        if crisis_level == 'severe':
+            # For severe crisis: slower, lower pitch, softer volume for calm, reassuring tone
+            adjusted_settings['rate'] = '-15%'
+            adjusted_settings['pitch'] = '-10%'
+            adjusted_settings['volume'] = 'soft'
+        elif crisis_level == 'moderate':
+            # For moderate crisis: slightly slower, slightly lower pitch
+            adjusted_settings['rate'] = '-8%'
+            adjusted_settings['pitch'] = '-6%'
+            adjusted_settings['volume'] = 'soft'
+        elif crisis_level == 'mild':
+            # For mild crisis: slightly slower for reassurance
+            adjusted_settings['rate'] = '-3%'
+            adjusted_settings['pitch'] = '-2%'
+            
+        return adjusted_settings
+    
     def _create_ssml_text(self, text: str, emotion: str = "neutral", 
                          voice_name: Optional[str] = None, language: str = "ar") -> str:
-        """Create SSML formatted text with emotional control"""
+        """Create SSML formatted text with emotional control and crisis-based adjustments"""
         if not voice_name:
             voice_name = self.voices[language][self.default_voice_gender]
         
@@ -749,34 +920,139 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
         
         settings = emotion_settings.get(emotion, emotion_settings['neutral'])
         
+        # Crisis-based pitch and tone adjustments
+        crisis_level = self._assess_crisis_level()
+        if crisis_level != 'none':
+            settings = self._adjust_settings_for_crisis(settings, crisis_level)
+        
         # Set appropriate xml:lang based on language parameter
         xml_lang = "ar-OM" if language == "ar" else "en-US"
         
         # Add natural pauses for better human-like speech
         enhanced_text = self._add_natural_pauses(text, emotion)
         
-        ssml = f"""
-        <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="{xml_lang}">
+        # Clean the enhanced text to ensure no malformed SSML tags
+        enhanced_text = self._clean_ssml_content(enhanced_text)
+        
+        ssml = f"""<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="{xml_lang}">
             <voice name="{voice_name}">
                 <prosody rate="{settings['rate']}" pitch="{settings['pitch']}" volume="{settings['volume']}">
-                    <emphasis level="moderate">{enhanced_text}</emphasis>
+                    {enhanced_text}
                 </prosody>
             </voice>
-        </speak>
-        """
+        </speak>"""
         
         return ssml.strip()
     
-    def _add_natural_pauses(self, text: str, emotion: str) -> str:
-        """Add natural pauses and breaks to text based on emotion for more human-like speech"""
+    def _clean_ssml_content(self, text: str) -> str:
+        """Clean text content to ensure valid SSML structure"""
         import re
         
-        # Handle emotional expressions first
+        # Remove any complete SSML documents that might be embedded
+        text = re.sub(r'<\?xml[^>]*\?>', '', text)  # Remove XML declarations
+        
+        # Remove any stray SSML tags that might cause conflicts
+        text = re.sub(r'</?speak[^>]*>', '', text)  # Remove any speak tags
+        text = re.sub(r'</?voice[^>]*>', '', text)  # Remove any voice tags
+        text = re.sub(r'</?prosody[^>]*>', '', text)  # Remove any prosody tags
+        
+        # Fix malformed break tags (like bbreak)
+        text = re.sub(r'<bbreak\s+time="([^"]+)"\s*/?>', r'<break time="\1"/>', text)
+        text = re.sub(r'<break\s+time=\'([^\']+)\'\s*/?>', r'<break time="\1"/>', text)  # Fix single quotes
+        
+        # Ensure break tags are properly formatted
+        text = re.sub(r'<break\s+time="([^"]+)"\s*/?>', r'<break time="\1"/>', text)
+        
+        # Remove any malformed emphasis tags and replace with proper ones if needed
+        text = re.sub(r'</?emphasis[^>]*>', '', text)
+        
+        # Remove any other potentially problematic SSML tags
+        text = re.sub(r'</?phoneme[^>]*>', '', text)
+        text = re.sub(r'</?say-as[^>]*>', '', text)
+        text = re.sub(r'</?sub[^>]*>', '', text)
+        
+        # Clean up any double spaces or line breaks
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        return text
+    
+    def _add_natural_pauses(self, text: str, emotion: str) -> str:
+        """Add natural pauses and breaks to text based on emotion for more human-like speech
+        
+        Enhanced to handle complex emotion markers from GPT-4.1-nano refinement:
+        - Converts emotion markers like '*soft sigh*' to proper SSML breaks
+        - Handles both English and Arabic emotional expressions
+        - Removes unwanted text markers that would be spoken aloud
+        """
+        import re
+        
+        # STAGE 1: Handle complex emotion markers from GPT-4.1-nano refinement
+        # These need to be converted to SSML breaks instead of being spoken
+        
+        # English emotion markers
+        emotion_patterns = {
+            # Sigh variations
+            r'\*soft sigh\*': '<break time="500ms"/>',
+            r'\*gentle sigh\*': '<break time="450ms"/>',
+            r'\*deep sigh\*': '<break time="600ms"/>',
+            r'\*relieved sigh\*': '<break time="400ms"/>',
+            r'\*tired sigh\*/': '<break time="550ms"/>',
+            r'\*sad sigh\*': '<break time="650ms"/>',
+            r'\*thoughtful sigh\*': '<break time="500ms"/>',
+            r'\*proud sigh\*': '<break time="400ms"/>',
+            
+            # Pause variations
+            r'\*soft pause\*': '<break time="400ms"/>',
+            r'\*gentle pause\*': '<break time="350ms"/>',
+            r'\*thoughtful pause\*': '<break time="500ms"/>',
+            r'\*encouraging pause\*': '<break time="300ms"/>',
+            r'\*reassuring pause\*': '<break time="350ms"/>',
+            r'\*contemplative pause\*': '<break time="550ms"/>',
+            r'\*excited pause\*': '<break time="200ms"/>',
+            r'\*calming pause\*': '<break time="450ms"/>',
+            
+            # Arabic emotion markers
+            r'\*تنهد خفيف\*': '<break time="500ms"/>',  # soft sigh
+            r'\*تنهد عميق\*': '<break time="600ms"/>',  # deep sigh
+            r'\*تنهد حزين\*': '<break time="650ms"/>',  # sad sigh
+            r'\*تنهد مطمئن\*': '<break time="400ms"/>',  # reassuring sigh
+            r'\*وقفة خفيفة\*': '<break time="350ms"/>',  # soft pause
+            r'\*وقفة مطمئنة\*': '<break time="350ms"/>',  # reassuring pause
+            r'\*وقفة متأملة\*': '<break time="500ms"/>',  # contemplative pause
+            r'\*وقفة مشجعة\*': '<break time="300ms"/>',  # encouraging pause
+            r'\*وقفة فرحة\*': '<break time="250ms"/>',  # happy pause
+            r'\*وقفة هادئة\*': '<break time="450ms"/>',  # calm pause
+            
+            # Breathing and grounding markers
+            r'\*deep breath\*': '<break time="700ms"/>',
+            r'\*breathe\*': '<break time="600ms"/>',
+            r'\*inhale\*': '<break time="500ms"/>',
+            r'\*exhale\*': '<break time="500ms"/>',
+            r'\*تنفس عميق\*': '<break time="700ms"/>',  # deep breath
+            r'\*شهيق\*': '<break time="500ms"/>',  # inhale
+            r'\*زفير\*': '<break time="500ms"/>',  # exhale
+            
+            # Voice quality markers that should be removed
+            r'\*whispered\*': '',
+            r'\*softly\*': '',
+            r'\*gently\*': '',
+            r'\*warmly\*': '',
+            r'\*quietly\*': '',
+            r'\*بهمس\*': '',  # whispered
+            r'\*بلطف\*': '',  # gently
+            r'\*بحنان\*': '',  # warmly
+        }
+        
+        # Apply emotion marker replacements
+        for pattern, replacement in emotion_patterns.items():
+            text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+        
+        # STAGE 2: Handle basic emotion expressions (existing functionality)
         # Replace ellipsis with natural pauses
         text = re.sub(r'\.{3,}', '<break time="800ms"/>', text)  # ...
         text = re.sub(r'_{3,}', '<break time="600ms"/>', text)   # ___
         
-        # Add breathing/sigh effects for emotional moments
+        # Add breathing/sigh effects for remaining simple emotional moments
         text = re.sub(r'<sigh>', '<break time="400ms"/>', text)
         text = re.sub(r'\*sigh\*', '<break time="400ms"/>', text)
         text = re.sub(r'\(sigh\)', '<break time="400ms"/>', text)
@@ -784,8 +1060,15 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
         # Handle hesitation markers
         text = re.sub(r'\buh+m+\b', '<break time="300ms"/>um<break time="200ms"/>', text, flags=re.IGNORECASE)
         text = re.sub(r'\bah+\b', '<break time="250ms"/>ah<break time="150ms"/>', text, flags=re.IGNORECASE)
+        text = re.sub(r'\bwell\b', 'well<break time="200ms"/>', text, flags=re.IGNORECASE)
+        text = re.sub(r'\byou know\b', 'you know<break time="150ms"/>', text, flags=re.IGNORECASE)
         
-        # Emotion-specific pause adjustments
+        # Arabic hesitation markers
+        text = re.sub(r'\bيعني\b', 'يعني<break time="200ms"/>', text)  # "I mean"
+        text = re.sub(r'\bأه\b', 'أه<break time="150ms"/>', text)     # "ah"
+        text = re.sub(r'\bإم\b', 'إم<break time="200ms"/>', text)     # "um"
+        
+        # STAGE 3: Emotion-specific pause adjustments (existing functionality enhanced)
         if emotion == 'excited':
             # Quick, energetic pauses
             text = re.sub(r'([.!?])\s+', r'\1<break time="150ms"/> ', text)
@@ -799,32 +1082,71 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
             text = re.sub(r'([.!?])\s+', r'\1<break time="300ms"/> ', text)
             text = re.sub(r'(,)\s+', r'\1<break time="150ms"/> ', text)
         
+        # STAGE 4: Clean up any remaining unwanted markers
+        # Remove any remaining asterisk markers that weren't caught above
+        text = re.sub(r'\*[^*]*\*', '', text)  # Remove any remaining *text* patterns
+        text = re.sub(r'\([^)]*pause[^)]*\)', '<break time="300ms"/>', text, flags=re.IGNORECASE)  # (pause variations)
+        text = re.sub(r'\([^)]*sigh[^)]*\)', '<break time="400ms"/>', text, flags=re.IGNORECASE)  # (sigh variations)
+        
+        # Clean up multiple consecutive breaks
+        text = re.sub(r'(<break time="[^"]*"/>\s*){2,}', r'<break time="600ms"/>', text)
+        
+        # Clean up extra whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+        
         return text
     
     def speak_text(self, text: str, voice_gender: str = "female", 
                    emotion: str = "neutral", timing_metrics: Optional[TimingMetrics] = None, 
                    return_bytes: bool = False, language: str = "ar"):
         try:
+            logger.info(f"🔊 TTS Request - Language: {language}, Voice: {voice_gender}, Emotion: {emotion}")
+            logger.info(f"🔊 TTS Text: {text[:100]}...")
+            
             if timing_metrics:
                 timing_metrics.tts_start_time = time.time()
+            
+            # Get voice name
             voice_name = self.voices[language].get(voice_gender, self.voices[language]['female'])
+            logger.info(f"🔊 Selected voice: {voice_name}")
+            
+            # Set voice in config
             self.tts_config.speech_synthesis_voice_name = voice_name
+            
+            # Create SSML
             ssml_text = self._create_ssml_text(text, emotion, voice_name, language)
+            logger.info(f"🔊 Generated SSML: {ssml_text[:200]}...")
+            
+            # Create synthesizer
             synthesizer = speechsdk.SpeechSynthesizer(
                 speech_config=self.tts_config,
                 audio_config=None
             )
+            
+            # Perform synthesis
+            logger.info("🔊 Starting TTS synthesis...")
             result = synthesizer.speak_ssml_async(ssml_text).get()
+            
             if timing_metrics:
                 timing_metrics.tts_end_time = time.time()
+            
             if result is None:
-                logger.error("TTS synthesis result is None.")
+                logger.error("❌ TTS synthesis result is None.")
                 return None
+                
+            logger.info(f"🔊 TTS synthesis completed with reason: {result.reason}")
+            
             if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+                logger.info("✅ TTS synthesis successful")
+                audio_size = len(result.audio_data) if result.audio_data else 0
+                logger.info(f"🔊 Audio data size: {audio_size} bytes")
+                
                 if return_bytes:
+                    logger.info("🔊 Returning audio bytes")
                     return result.audio_data
                 else:
                     if result.audio_data:
+                        logger.info("🔊 Playing audio via pygame")
                         if timing_metrics:
                             timing_metrics.voice_playback_start_time = time.time()
                         audio_stream = io.BytesIO(result.audio_data)
@@ -832,10 +1154,23 @@ Always be empathetic, professional, and respectful of Omani and Islamic culture.
                         pygame.mixer.music.play()
                         while pygame.mixer.music.get_busy():
                             pygame.time.wait(100)
+                        logger.info("🔊 Audio playback completed")
+                    else:
+                        logger.error("❌ No audio data in result")
+                        return False
                 return True
-            return False if not return_bytes else b''
+            elif result.reason == speechsdk.ResultReason.Canceled:
+                cancellation = result.cancellation_details
+                logger.error(f"❌ TTS synthesis canceled: {cancellation.reason}")
+                if cancellation.error_details:
+                    logger.error(f"❌ TTS error details: {cancellation.error_details}")
+                return False if not return_bytes else b''
+            else:
+                logger.error(f"❌ TTS synthesis failed with reason: {result.reason}")
+                return False if not return_bytes else b''
+                
         except Exception as e:
-            logger.error(f"TTS Exception: {e}")
+            logger.error(f"❌ TTS Exception: {e}", exc_info=True)
             print(f"🚨 Speech synthesis error: {e}")
             return False
     

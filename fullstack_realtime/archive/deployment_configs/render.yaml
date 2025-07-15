@@ -1,0 +1,45 @@
+services:
+  # Backend API Service
+  - type: web
+    name: omani-therapist-api
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: AZURE_SPEECH_KEY
+        sync: false
+      - key: AZURE_SPEECH_REGION
+        value: uaenorth
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PORT
+        value: 8000
+    
+    # Auto-deploy on Git pushes
+    autoDeploy: true
+    
+    # Build command (handled by Dockerfile)
+    # buildCommand: 
+    
+    # Start command (handled by Dockerfile)
+    # startCommand: 
+
+  # Optional: Background worker for async tasks
+  # - type: worker
+  #   name: omani-therapist-worker
+  #   runtime: docker
+  #   plan: starter
+  #   env: docker
+  #   dockerfilePath: ./Dockerfile
+  #   dockerContext: .
+  #   startCommand: python worker.py
+  #   envVars:
+  #     - fromService:
+  #         type: web
+  #         name: omani-therapist-api
+  #         property: envVars 

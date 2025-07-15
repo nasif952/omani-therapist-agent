@@ -204,11 +204,14 @@ async def process_audio(file: UploadFile = File(...)):
                 content={"error": "AI failed to generate response. Please try again."}
             )
         
-        # Detect emotion from AI response for natural TTS
-        detected_emotion = therapist_ai.detect_emotion_from_text(ai_response)
+        # Stage 2: Advanced emotion refinement with GPT-4.1-nano
+        refined_response, enhanced_ssml = therapist_ai.refine_ai_response_with_emotion(ai_response, user_text, detected_language)
         
-        # TTS: Convert response to speech with detected emotion
-        tts_audio = therapist_ai.speak_text(ai_response, emotion=detected_emotion, return_bytes=True, language=detected_language)
+        # Detect emotion from refined response for TTS
+        detected_emotion = therapist_ai.detect_emotion_from_text(refined_response)
+        
+        # TTS: Convert refined response to speech with enhanced emotion
+        tts_audio = therapist_ai.speak_text(refined_response, emotion=detected_emotion, return_bytes=True, language=detected_language)
         
         if not isinstance(tts_audio, (bytes, bytearray)):
             return JSONResponse(
@@ -221,10 +224,12 @@ async def process_audio(file: UploadFile = File(...)):
         
         return {
             "recognized_text": user_text,
-            "ai_response": ai_response,
+            "ai_response": refined_response,  # Return the refined response
+            "original_ai_response": ai_response,  # Keep original for comparison
             "tts_audio_base64": audio_b64,
             "is_crisis_detected": is_crisis,
             "detected_emotion": detected_emotion,
+            "emotion_refinement_used": therapist_ai.use_emotion_refinement,
             "timing": timing.__dict__ if timing else None,
             "timestamp": time.time()
         }
@@ -277,11 +282,14 @@ async def process_text(text: str = Form(...)):
                 content={"error": "AI failed to generate response. Please try again."}
             )
         
-        # Detect emotion from AI response for natural TTS
-        detected_emotion = therapist_ai.detect_emotion_from_text(ai_response)
+        # Stage 2: Advanced emotion refinement with GPT-4.1-nano
+        refined_response, enhanced_ssml = therapist_ai.refine_ai_response_with_emotion(ai_response, text, detected_language)
         
-        # TTS: Convert response to speech with detected emotion
-        tts_audio = therapist_ai.speak_text(ai_response, emotion=detected_emotion, return_bytes=True, language=detected_language)
+        # Detect emotion from refined response for TTS
+        detected_emotion = therapist_ai.detect_emotion_from_text(refined_response)
+        
+        # TTS: Convert refined response to speech with enhanced emotion
+        tts_audio = therapist_ai.speak_text(refined_response, emotion=detected_emotion, return_bytes=True, language=detected_language)
         
         if not isinstance(tts_audio, (bytes, bytearray)):
             return JSONResponse(
@@ -294,10 +302,12 @@ async def process_text(text: str = Form(...)):
         
         return {
             "user_text": text,
-            "ai_response": ai_response,
+            "ai_response": refined_response,  # Return the refined response
+            "original_ai_response": ai_response,  # Keep original for comparison
             "tts_audio_base64": audio_b64,
             "detected_emotion": detected_emotion,
             "is_crisis_detected": is_crisis,
+            "emotion_refinement_used": therapist_ai.use_emotion_refinement,
             "timing": timing.__dict__,
             "timestamp": time.time()
         }
@@ -440,18 +450,24 @@ async def websocket_audio_stream(websocket: WebSocket):
         logger.info(f"AI response received: {ai_response}")
         logger.info(f"Detected language for TTS: {detected_language}")
         
-        # Send AI response
-        await websocket.send_json({"type": "ai_response", "text": ai_response})
-        
+        # Stage 2: Advanced emotion refinement with GPT-4.1-nano
         if ai_response:
+            refined_response, enhanced_ssml = therapist_ai.refine_ai_response_with_emotion(ai_response, complete_text, detected_language)
+        else:
+            refined_response = None
+        
+        # Send refined AI response
+        await websocket.send_json({"type": "ai_response", "text": refined_response})
+        
+        if refined_response:
             logger.info("Starting TTS streaming...")
             await websocket.send_json({"type": "tts_start"})
             
-            # Detect emotion from AI response for natural TTS
-            detected_emotion = therapist_ai.detect_emotion_from_text(ai_response)
+            # Detect emotion from refined response for TTS
+            detected_emotion = therapist_ai.detect_emotion_from_text(refined_response)
             
-            # Generate TTS audio with detected language and emotion
-            tts_audio_bytes = therapist_ai.speak_text(ai_response, emotion=detected_emotion, return_bytes=True, language=detected_language)
+            # Generate TTS audio with refined response and enhanced emotion
+            tts_audio_bytes = therapist_ai.speak_text(refined_response, emotion=detected_emotion, return_bytes=True, language=detected_language)
             
             if tts_audio_bytes and isinstance(tts_audio_bytes, bytes):
                 logger.info(f"TTS audio generated, size: {len(tts_audio_bytes)} bytes")
