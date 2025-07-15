@@ -1,245 +1,101 @@
-# Omani Therapist AI - Voice-Based Mental Health Chatbot
+# Omani Therapist: Real-Time Voice-Only Omani Arabic Mental Health Chatbot
 
-A culturally-sensitive, voice-only mental health chatbot system designed specifically for Omani Arabic speakers, featuring real-time conversational AI with <20 second latency.
+## Overview
+Omani Therapist is a real-time, voice-only mental health chatbot designed for culturally sensitive, low-latency conversations in Omani Arabic. It leverages Azure Speech Services for speech-to-text (STT) and text-to-speech (TTS), and OpenAI GPT-4o (with Claude Opus 4 fallback) for AI-driven, empathetic responses. The system is built for turn-based, streaming audio interactions, ensuring a seamless, natural user experience.
 
-## 🏗️ Project Structure
+## Features
+- **Real-time, low-latency voice chat** (WebSocket streaming)
+- **Omani Arabic support** (STT, TTS, and AI)
+- **Strict turn-taking** (user cannot speak while TTS is playing)
+- **Multi-turn conversations** in a single session
+- **Frontend chat UI** with full message history
+- **Cultural and clinical safety** (roadmap includes emotion detection, crisis intervention, HIPAA compliance)
+- **Fallback to Claude Opus 4** if OpenAI GPT-4o is unavailable
+- **Detailed logging** for debugging and research
 
-```
-📁 main project/
-├── 🤖 ai_systems/                    # AI Integration Systems
-│   ├── main_system/                  # Primary AI system (OpenAI + Claude)
-│   │   ├── omani_therapist_ai.py    # Main AI conversation system
-│   │   ├── demo_ai_conversation.py  # Demo script with multiple modes
-│   │   ├── requirements.txt         # Python dependencies
-│   │   └── README.md               # System documentation
-│   └── claude_only/                 # Claude-only AI system
-│       ├── omani_therapist_ai_onlyclaude.py  # Pure Claude implementation
-│       ├── demo_claude_conversation.py       # Claude demo script
-│       └── README.md                         # Claude system docs
-│
-├── 🗣️ speech_services/              # Speech Processing Services
-│   ├── text_to_speech/              # TTS Implementation
-│   │   ├── azure_setup_instructions.md  # Azure TTS setup guide
-│   │   ├── therapy_tts_example.py      # TTS example scripts
-│   │   ├── test_azure_omani_tts.py     # TTS testing utilities
-│   │   ├── check_credentials.py        # Credential validation
-│   │   ├── setup_env.py               # Environment setup
-│   │   ├── omani_tts_samples/         # Audio samples
-│   │   ├── requirements.txt           # TTS dependencies
-│   │   ├── ENV_SETUP_GUIDE.md         # Environment guide
-│   │   ├── QUICK_START.md             # Quick start guide
-│   │   └── TTS services comparison.md  # Service comparison
-│   └── speech_to_text/              # STT Implementation
-│       ├── azure/                   # Azure Speech Services
-│       │   ├── testazure_mic_arabic.py        # Arabic microphone test
-│       │   ├── testazure_mic_arabic_english.py # Bilingual test
-│       │   └── credentials_template.md        # Credential template
-│       └── google/                  # Google Speech Services
-│           └── testgoogle.ipynb     # Google STT testing
-│
-├── 📚 documentation/                # Project Documentation
-│   ├── technical_assessment/        # Assessment Documents
-│   │   ├── Technical Assessment Omani Therapi.md     # Requirements
-│   │   └── Technical Assessment_ OMANI-Therapist-Voice (2).pdf
-│   ├── setup_guides/               # Setup Documentation
-│   └── 7_12_2025_progress.md       # Development progress
-│
-├── 📊 data/                        # Data and Samples
-│   ├── audio_samples/              # Audio Sample Files
-│   │   └── omani_tts_samples/      # Omani TTS voice samples
-│   └── session_transcripts/        # Session Data
-│       ├── therapy_session_20250712_113157/  # Session recordings
-│       └── therapy_session_20250712_114633/  # Session recordings
-│
-├── 🔧 tools/                       # Utility Tools
-│   ├── security/                   # Security Tools
-│   │   ├── security_check.py       # Security scanning script
-│   │   └── GITHUB_UPLOAD_CHECKLIST.md  # Security checklist
-│   └── testing/                    # Testing Tools
-│
-├── ⚙️ config/                      # Configuration Files
-│   ├── environment/                # Environment Configuration
-│   │   ├── env_template.txt        # Environment template
-│   │   └── env_example.txt         # Environment examples
-│   └── deployment/                 # Deployment Configuration
-│       └── DEPLOYMENT_PLAN.md      # Deployment strategy
-│
-├── 🔒 .gitignore                   # Git ignore patterns
-└── 📖 README.md                    # This file
+## Architecture
+```mermaid
+graph TD
+  A[User (Mic)] -- PCM Audio --> B(React Frontend)
+  B -- WebSocket (PCM) --> C(Backend API)
+  C -- Azure STT --> D[Transcription]
+  C -- GPT-4o/Claude --> E[AI Response]
+  C -- Azure TTS --> F[TTS Audio Chunks]
+  C -- WebSocket (Base64 Audio) --> B
+  B -- Audio Playback --> A
+  B -- Chat UI --> G[Message History]
 ```
 
-## 🚀 Quick Start
+## Tech Stack
+- **Frontend:** React, Web Audio API, WebSocket
+- **Backend:** Python (FastAPI), Azure Speech Services, OpenAI GPT-4o, Claude Opus 4
+- **Audio:** Raw PCM streaming, WAV conversion, base64 TTS
+- **Deployment:** (see `config/deployment/`)
 
-### 1. Choose Your AI System
-
-**Option A: Main System (OpenAI + Claude)**
-```bash
-cd ai_systems/main_system
-pip install -r requirements.txt
-python demo_ai_conversation.py
-```
-
-**Option B: Claude-Only System**
-   ```bash
-cd ai_systems/claude_only
-pip install -r ../main_system/requirements.txt
-python demo_claude_conversation.py
-   ```
-
-### 2. Configure Environment
-
-   ```bash
-# Copy environment template to project root
-cp config/environment/env_template.txt .env
-
-# Edit .env with your API keys
-# AZURE_SPEECH_KEY=your_azure_key
-# AZURE_SPEECH_REGION=your_region
-# OPENAI_API_KEY=your_openai_key
-# ANTHROPIC_API_KEY=your_anthropic_key
-```
-
-**Note:** The `.env` file should be in the project root directory so all systems can access it.
-
-### 3. Test Speech Services
-
-**Test Text-to-Speech:**
-```bash
-cd speech_services/text_to_speech
-python test_azure_omani_tts.py
-```
-
-**Test Speech-to-Text:**
-   ```bash
-cd speech_services/speech_to_text/azure
-python testazure_mic_arabic.py
-```
-
-## 🎯 Key Features
-
-- **🗣️ Voice-Only Interface**: Complete hands-free interaction
-- **⚡ Real-time Processing**: <20 second response latency
-- **🇴🇲 Omani Arabic Support**: Native ar-OM language support
-- **🧠 Dual AI Systems**: OpenAI GPT-4o + Claude Opus 4
-- **🔄 Automatic Fallback**: Seamless API switching
-- **🔒 Security First**: No hardcoded credentials
-- **📊 Performance Monitoring**: Complete timing metrics
-
-## 🛠️ Technical Stack
-
-- **STT**: Azure Speech Services (ar-OM)
-- **TTS**: Azure Speech Services (Omani voices)
-- **AI Models**: OpenAI GPT-4o, Claude Opus 4, Claude 3.5 Sonnet
-- **Audio**: 48kHz PCM, real-time processing
-- **Languages**: Python 3.8+, PowerShell
-
-## 📋 System Requirements
-
-- Python 3.8 or higher
-- Windows 10/11 (tested)
-- Microphone and speakers
-- Internet connection
+## Setup Instructions
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
 - Azure Speech Services account
-- OpenAI API key (for main system)
-- Anthropic API key (for Claude systems)
+- OpenAI API key (GPT-4o)
+- (Optional) Anthropic Claude API key
 
-## 🔧 Development
-
-### Running Security Checks
+### Backend Setup
 ```bash
-cd tools/security
-python security_check.py
+cd fullstack/api
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
+# Set environment variables (see config/environment/env_template.txt)
+uvicorn main:app --reload
 ```
 
-### Testing Individual Components
+### Frontend Setup
 ```bash
-# Test TTS only
-cd speech_services/text_to_speech
-python therapy_tts_example.py
-
-# Test STT only
-cd speech_services/speech_to_text/azure
-python testazure_mic_arabic.py
+cd fullstack/frontend
+npm install
+npm start
 ```
 
-## 📖 Documentation
+### Environment Variables
+- Copy `config/environment/env_template.txt` to `.env` and fill in your keys.
 
-- **Setup Guides**: `documentation/setup_guides/`
-- **Technical Assessment**: `documentation/technical_assessment/`
-- **Development Progress**: `documentation/7_12_2025_progress.md`
-- **API Documentation**: Each system's README.md
+## Usage Guide
+1. Start backend and frontend as above.
+2. Open the frontend in your browser.
+3. Press the mic button to speak. Your voice is streamed in real time.
+4. Wait for the AI therapist to respond (TTS audio will play automatically).
+5. Speak again when the mic is re-enabled.
+6. View the full chat history in the UI.
 
-## 🔒 Security
+## Development & Debugging
+- Logs are written for every audio chunk, STT, TTS, and AI event.
+- See `documentation/` for guides and technical assessment.
+- See `PATH_UPDATES_SUMMARY.md` and `PROJECT_STRUCTURE_REORGANIZATION.md` for recent changes.
 
-- All sensitive data removed from repository
-- Environment variables for API keys
-- Comprehensive `.gitignore` patterns
-- Security scanning tools included
+## Contribution
+Pull requests are welcome! Please see `tools/security/GITHUB_UPLOAD_CHECKLIST.md` before submitting.
 
-## 🤝 Contributing
+## License
+[MIT License](LICENSE)
 
-1. Review the technical assessment in `documentation/technical_assessment/`
-2. Check the development progress in `documentation/7_12_2025_progress.md`
-3. Run security checks before commits: `tools/security/security_check.py`
-4. Follow the folder structure for new additions
+## FAQ
+**Q: Why Omani Arabic?**  
+A: The project is designed for local cultural and linguistic relevance.
 
-## 📞 Support
+**Q: Can I use a different TTS/STT provider?**  
+A: The backend is modular; see `speech_services/` for alternatives.
 
-For technical issues or questions about the implementation, refer to:
-- System-specific READMEs in each AI system folder
-- Setup guides in `documentation/setup_guides/`
-- Configuration examples in `config/environment/`
+**Q: How is user privacy handled?**  
+A: No conversations are stored by default. See roadmap for HIPAA compliance.
 
----
-
-**Project Status**: ✅ Complete - Ready for deployment
-**Last Updated**: January 12, 2025
-**Version**: 1.0.0 
-
-## v3_realtime_audio Branch
-
-### Features
-- **Realtime audio streaming**: Audio is streamed from the browser to the backend and TTS audio is streamed back in real time.
-- **Strict turn-taking**: User cannot speak while the AI is talking. The microphone is disabled during TTS playback and re-enabled only after the AI response finishes.
-- **No popups for audio**: TTS audio plays automatically in the browser without opening new tabs or popups.
-- **All recent bug fixes and diagnostics**: Includes robust logging and diagnostics for both backend and frontend.
-
-### Setup & Usage
-
-1. **Clone the repository and checkout the branch:**
-   ```sh
-   git checkout v3_realtime_audio
-   ```
-
-2. **Backend setup:**
-   - Install dependencies:
-     ```sh
-     cd fullstack_realtime/api
-     pip install -r requirements.txt
-     ```
-   - Start the backend server:
-     ```sh
-     python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
-     ```
-
-3. **Frontend setup:**
-   - Install dependencies:
-     ```sh
-     cd fullstack_realtime/frontend
-     npm install
-     ```
-   - Start the frontend:
-     ```sh
-     npm start
-     ```
-   - Open your browser to [http://localhost:3000](http://localhost:3000)
-
-### User Experience
-- Speak into your microphone. The system will transcribe your speech, generate an AI response, and play the response as TTS audio.
-- You cannot speak again until the AI's TTS response has finished playing.
-- All audio is handled in the background—no popups or new tabs.
-- Chat history is displayed in the UI for a natural conversation flow.
+## Troubleshooting
+- **Audio not streaming?**  
+  - Check browser permissions and backend logs.
+- **TTS not playing?**  
+  - Ensure audio chunks are received and base64 decoded in the frontend.
+- **API keys not working?**  
+  - Double-check your `.env` file and Azure/OpenAI dashboards.
 
 ---
-
-For more details, see the code and comments in the `v3_realtime_audio` branch. 
+For a detailed project history and technical log, see `PROJECT_HISTORY.md`. 
