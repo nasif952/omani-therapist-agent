@@ -155,7 +155,7 @@
 - **Product Managers**: 2-3 leaders
 
 ### Technology Stack Evolution
-- **Current**: FastAPI, React, OpenAI, Azure
+- **Current**: FastAPI, React, OpenAI (GPT-4.1-mini + GPT-4.1-nano), Azure
 - **Near-term**: Add Redis, PostgreSQL, Docker
 - **Medium-term**: Kubernetes, Microservices
 - **Long-term**: Custom models, Edge computing
@@ -163,9 +163,9 @@
 ## Success Metrics
 
 ### Technical KPIs
-- **Latency**: <15 seconds (target)
+- **Latency**: <15 seconds (target, current: 19.056s avg)
 - **Uptime**: 99.9% availability
-- **Accuracy**: 95% therapeutic appropriateness
+- **Cultural Appropriateness**: >70% (current: 65.0%)
 - **Scalability**: 10,000+ concurrent users
 
 ### Business KPIs

@@ -81,14 +81,14 @@
 ## 📊 **Performance Metrics**
 
 ### **Latency Benchmarks**
-- **Simple Greetings**: 12.46s ✅
-- **Complex Therapeutic**: 22-25s ✅
-- **Crisis Intervention**: 20.44s ✅
+- **Simple Greetings**: 12.458s ✅
+- **Complex Therapeutic**: 24.266s ✅
+- **Crisis Intervention**: 20.41s ✅
 - **Average Processing**: 19.056s ✅ (< 20s requirement)
 
 ### **Quality Metrics**
-- **Cultural Appropriateness**: 65% cultural elements detected
-- **Crisis Detection**: 80% accuracy
+- **Cultural Appropriateness**: 65.0% cultural elements detected
+- **Crisis Detection**: Functional (detected in crisis scenarios)
 - **Language Processing**: 100% Arabic content generation
 - **TTS Success Rate**: 100% voice synthesis
 - **Emotional Refinement**: 100% applied
@@ -181,10 +181,13 @@ fullstack_realtime/
 
 ## 💰 **API Costs**
 
-**Total Estimated**: < $50 (within budget)
-- **OpenAI API**: ~$30 (GPT-4.1-mini + GPT-4.1-nano)
-- **Azure Cognitive Services**: ~$15 (STT + TTS)
-- **Anthropic Claude**: ~$5 (Fallback system)
+**Updated Pricing (July 2025)**:
+- **GPT-4.1-mini**: $0.40/1M input tokens, $1.60/1M output tokens
+- **GPT-4.1-nano**: $0.100/1M input tokens, $0.400/1M output tokens
+- **Azure Cognitive Services**: Standard STT/TTS pricing
+- **Anthropic Claude**: Fallback system only
+
+**Total Estimated**: < $50 (within budget requirements)
 
 ---
 

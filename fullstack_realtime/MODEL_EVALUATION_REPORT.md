@@ -30,30 +30,29 @@ The Omani Therapist AI employs a innovative **dual-model architecture** combinin
 ### Latency Benchmarks
 | Model Stage | Average Time | Max Time | Success Rate |
 |-------------|-------------|----------|--------------|
-| **Primary Response** | 8.2s | 12.1s | 98% |
-| **Emotion Refinement** | 4.8s | 7.3s | 97% |
-| **Total Pipeline** | 19.1s | 25.4s | 95% |
+| **Total Pipeline** | 19.056s | 24.266s | 100% |
+| **Min Latency** | 12.458s | N/A | N/A |
 
 ### Quality Metrics
-| Metric | GPT-4.1-mini | GPT-4.1-nano | Combined |
-|--------|-------------|-------------|----------|
-| **Therapeutic Accuracy** | 92% | N/A | 92% |
-| **Cultural Appropriateness** | 87% | 89% | 88% |
-| **Emotional Authenticity** | 78% | 94% | 91% |
-| **Crisis Detection** | 85% | N/A | 85% |
+| Metric | Combined System | Test Results |
+|--------|----------------|--------------|
+| **Cultural Appropriateness** | 65.0% | From actual test scenarios |
+| **Emotional Refinement** | 100% | Applied in all test cases |
+| **TTS Success Rate** | 100% | Generated in all test cases |
+| **Crisis Detection** | Functional | Detected in crisis scenarios |
 
 ## Cost Analysis
 
-### API Costs (Per 1000 Requests)
-- **GPT-4.1-mini**: $12.50
-- **GPT-4.1-nano**: $3.20
-- **Claude Sonnet**: $1.80 (fallback only)
-- **Total Average**: $15.70
+### Updated API Pricing (July 2025)
+- **GPT-4.1-mini**: $0.40/1M input tokens, $1.60/1M output tokens
+- **GPT-4.1-nano**: $0.100/1M input tokens, $0.400/1M output tokens
+- **Azure Cognitive Services**: Standard STT/TTS pricing
+- **Claude Sonnet**: Fallback system only
 
 ### Cost Optimization
-- **Savings**: 40% compared to GPT-4.1-mini only
-- **Efficiency**: 2x faster emotional processing
-- **Scalability**: Linear cost scaling
+- **Dual-Model Approach**: Optimized cost vs single high-end model
+- **Efficiency**: GPT-4.1-nano for emotion refinement is cost-effective
+- **Scalability**: Linear cost scaling with usage
 
 ## Dual-Model Benefits
 
@@ -131,12 +130,12 @@ The Omani Therapist AI employs a innovative **dual-model architecture** combinin
 ## Competitive Analysis
 
 ### Comparison with Single-Model Approaches
-| Metric | Dual-Model | GPT-4.1-mini Only | GPT-4.1-nano Only |
-|--------|------------|------------------|-------------------|
-| **Quality** | 91% | 89% | 76% |
-| **Cost** | $15.70 | $25.60 | $8.40 |
-| **Latency** | 19.1s | 22.3s | 12.4s |
-| **Reliability** | 95% | 92% | 88% |
+| Metric | Dual-Model | Notes |
+|--------|------------|--------|
+| **Latency** | 19.056s avg | Actual test results |
+| **Cultural Appropriateness** | 65.0% | Actual test results |
+| **Emotion Refinement** | 100% applied | All test cases |
+| **TTS Success** | 100% | All test cases |
 
 ## Technical Innovation
 
