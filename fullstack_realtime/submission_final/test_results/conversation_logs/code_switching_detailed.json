@@ -1,0 +1,21 @@
+{
+  "scenario": "code_switching",
+  "timestamp": "2025-07-15T18:37:29.207099",
+  "user_input": "Doctor, I'm feeling very anxious. أحس بالقلق والتوتر. How can I manage this?",
+  "ai_response": "<speak>أنا آسف جدًا لسماع أنك تشعرين بالقلق والتوتر، وفعلاً، هذي مشاعر مهمة، وأنتِ لستِ وحدكِ في هالشيء... <break time='500ms'/> أحيانًا، يكون من الصعب نتحكم في هالمشاعر، لكن، <break time='300ms'/> يمكننا نعمل على تخفيفها شوي... <break time='500ms'/> هل أنتِ في أمان الآن؟ <break time='300ms'/> هل في أحد من المقربين يقدر يدعمك أو تتواصلين معه؟ <break time='700ms'/> رحمة الله واسعة، والقلق والتوتر، ممكن نخفف منهم بطرق بسيطة، مثل التنفس العميق، وتنظيم الوقت، ومحاولة الاسترخاء... <break time='500ms'/> لكن، إذا استمر القلق، وأثر على نومك أو تركيزك، فمن الضروري أن تطلبي المساعدة من مختص نفسي، وأنا هنا أؤكدلك إن هالشيء هو خطوة قوية، وأنتِ تستحقين الراحة والسلام... <break time='700ms'/> أنصحك بالتواصل مع الجهات المختصة في عمان للحصول على الدعم، مثل: <break time='300ms'/> - الطوارئ: 999 <break time='300ms'/> - الدعم النفسي من وزارة الصحة: +968 24601999 <break time='300ms'/> - خط الأزمات: +968 80077000... <break time='500ms'/> تذكري، طلب الدعم مو ضعف، بالعكس، هو قوة، وأنتِ تستحقين هالراحة... <break time='700ms'/> أنا هنا معك، وأقدر أسمعك، وما تترددي تشاركين مشاعرك أكثر... <break time='500ms'/> تنفس معي... <break time='300ms'/> تنفس ببطء وهدوء... <break time='500ms'/> أنتِ في أمان الآن، ونحن مع بعض، وسنعدي هالمرحلة معًا. <break time='700ms'/> </speak>",
+  "crisis_detected": false,
+  "processing_info": {
+    "pipeline_stages": [
+      "Language Detection",
+      "GPT-4o Primary Response",
+      "Emotion Refinement (GPT-4.1-nano)",
+      "TTS Synthesis"
+    ],
+    "complexity_analysis": {
+      "input_length": 76,
+      "response_length": 1260,
+      "contains_arabic": true,
+      "therapeutic_quality": "Professional-grade"
+    }
+  }
+}
